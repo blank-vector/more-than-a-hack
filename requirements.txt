@@ -1,0 +1,11 @@
+numpy
+pandas
+scipy
+scikit-learn
+lightgbm
+kloppy>=3.19
+matplotlib
+mplsoccer
+opencv-python
+jupyter
+ipykernel
