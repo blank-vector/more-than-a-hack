@@ -9,3 +9,4 @@ mplsoccer
 opencv-python
 jupyter
 ipykernel
+-e .

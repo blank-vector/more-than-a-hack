@@ -8,7 +8,7 @@ It's built and validated on Metrica's three public sample matches. The competiti
 
 ```bash
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements.txt   # also installs src/possession in editable mode
 python scripts/prepare.py        # clones metrica-sports/sample-data into data/ and caches the 3 matches (~1 min)
 ```
 
@@ -17,7 +17,7 @@ python scripts/prepare.py        # clones metrica-sports/sample-data into data/ 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1      # if blocked: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-pip install -r requirements.txt
+pip install -r requirements.txt   # also installs src/possession in editable mode
 python scripts\prepare.py
 ```
 
