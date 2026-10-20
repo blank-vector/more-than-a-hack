@@ -12,6 +12,15 @@ pip install -r requirements.txt
 python scripts/prepare.py        # clones metrica-sports/sample-data into data/ and caches the 3 matches (~1 min)
 ```
 
+**Windows (PowerShell)**, one line at a time:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1      # if blocked: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+pip install -r requirements.txt
+python scripts\prepare.py
+```
+
 Then open `notebooks/` in VS Code, choosing the `.venv` kernel.
 
 ## Layout
