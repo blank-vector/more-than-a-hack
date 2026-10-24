@@ -26,6 +26,12 @@ python scripts/predict_v1.py --stickiness S   # v1: write outputs/submissions/v1
 
 `src/possession/challenge.py` imports the official `games.py` and `possession_metrics.py` from the official repo, so we always score exactly like the organisers. `src/possession/atd.py` parses the ATD once into a cache in `$MTAH_DATA_DIR/cache`.
 
+## Submission log
+
+| Version | Command | Full-match sanity (rate / dead / stoppages) | Public window (sanity only) |
+|---|---|---|---|
+| v1.1 | `python scripts/predict_v1.py --d-bias -2.0 --stickiness 2 --d-cost-ratio 4` | 3.6 / 44% / 107 | spellF1 0.400 · macroF1 0.700 · 13 vs 17 possessions |
+
 ---
 
 ## Prep work on Metrica's public sample (before the brief)
