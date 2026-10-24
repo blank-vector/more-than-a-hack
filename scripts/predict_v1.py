@@ -40,6 +40,7 @@ def possession_rate(labels: np.ndarray) -> tuple[int, float, float]:
     return len(poss), len(poss) / max(live_min, 1e-9), float(poss.mean()) if len(poss) else 0.0
 
 
+TARGET_STOPS = 105  # dead-ball stretches per match: DFL matches 97-113
 TARGET_DEAD = 0.45  # dead-ball share: DFL matches 41-52%, typical top-flight football ~40-50%
 
 
@@ -52,9 +53,9 @@ def decode(ll, halves, p):
 
 
 def sweep(a, tags, p):
-    section("Sweep: dead-ball threshold × stickiness",
-            f"Each cell: possessions per live minute / dead-ball share. Targets ≈ {TARGET_RATE} and ≈ {TARGET_DEAD:.0%}. "
-            "No ground truth used.")
+    section(f"Sweep: dead-ball threshold × stickiness  (d-cost-ratio {p.d_cost_ratio})",
+            f"Each cell: possessions per live minute / dead-ball share / dead-ball stretches. "
+            f"Targets ≈ {TARGET_RATE}, ≈ {TARGET_DEAD:.0%}, ≈ {TARGET_STOPS}. No ground truth used.")
     halves = ch.half_index(a.n_frames)
     biases, sticks = (-3.0, -2.0, -1.0, 0.0, 1.0), (1, 2, 4, 8)
     t = table("--d-bias  \\  --stickiness", *[str(s_) for s_ in sticks])
@@ -68,14 +69,16 @@ def sweep(a, tags, p):
                 labels = decode(ll, halves, dataclasses.replace(p, d_bias=b, stickiness=float(s_)))
                 _, rate, _ = possession_rate(labels)
                 dead = float(np.mean(labels[halves > 0] == "D"))
-                miss = abs(np.log(max(rate, 1e-9) / TARGET_RATE)) + 3 * abs(dead - TARGET_DEAD)
+                stops = sum(len(runs(labels[halves == h], "D")) for h in (1, 2))
+                miss = (abs(np.log(max(rate, 1e-9) / TARGET_RATE)) + 3 * abs(dead - TARGET_DEAD)
+                        + 0.5 * abs(np.log(max(stops, 1) / TARGET_STOPS)))
                 best = min(best or (miss, b, s_), (miss, b, s_))
                 style = "bold green" if miss < 0.25 else "yellow" if miss < 0.6 else "red"
-                cells.append(Text(f"{rate:.1f} / {dead:.0%}", style=style))
+                cells.append(Text(f"{rate:.1f} / {dead:.0%} / {stops}", style=style))
             t.add_row(str(b), *cells)
     console.print(t)
-    insight(f"closest to both targets: --d-bias {best[1]} --stickiness {best[2]}\n"
-            f"   →  python scripts/predict_v1.py --d-bias {best[1]} --stickiness {best[2]}")
+    insight(f"closest to the targets: --d-bias {best[1]} --stickiness {best[2]}\n"
+            f"   →  python scripts/predict_v1.py --d-bias {best[1]} --stickiness {best[2]} --d-cost-ratio {p.d_cost_ratio}")
 
 
 def main():
@@ -126,7 +129,7 @@ def main():
     rate = len(poss) / max(live_min, 1e-9)
     t = table("", "count", "mean s", "median s", "p90 s")
     t.add_row("possessions", str(len(poss)), f"{poss.mean():.1f}", f"{np.median(poss):.1f}", f"{np.percentile(poss, 90):.1f}")
-    t.add_row("dead-ball stretches", str(len(dead)), f"{dead.mean():.1f}", f"{np.median(dead):.1f}", f"{np.percentile(dead, 90):.1f}")
+    t.add_row(f"dead-ball stretches (DFL ≈ {TARGET_STOPS})", str(len(dead)), f"{dead.mean():.1f}", f"{np.median(dead):.1f}", f"{np.percentile(dead, 90):.1f}")
     console.print(t)
     console.print(f"possessions per live minute: [bold]{rate:.1f}[/bold]  [dim](public window ≈ {TARGET_RATE})[/dim]")
     if rate > TARGET_RATE * 1.3:
@@ -143,7 +146,8 @@ def main():
         t.add_row(code, bar(agree, 12, "cyan"), str(n),
                   "[green]team in possession[/green]" if sign > 0 else "[red]defending team[/red]" if sign < 0 else "[dim]ignored[/dim]")
     console.print(t)
-    console.print(f"[dim]ball visible with a player within {p.near_m} m: {ev.report['frac_near']:.1%} of graded frames[/dim]")
+    console.print(f"[dim]ball visible with a player within {p.near_m} m: {ev.report['frac_near']:.1%} of graded frames · "
+                  f"ball standing still: {ev.report['frac_still']:.1%}[/dim]")
     console.print("\nnext: [bold]python scripts/score.py[/bold]")
 
 

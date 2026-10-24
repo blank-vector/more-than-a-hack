@@ -39,6 +39,8 @@ class Params:
     d_missing: float = 1.5         # ball not visible
     d_in_play: float = -1.5        # ball visible inside the lines (live-play evidence)
     d_ball_moving: float = -1.0    # visible ball moving faster than 2 m/s
+    d_ball_still: float = 2.5      # visible ball nearly static (< 0.5 m/s median over 2 s): set-piece setup
+    still_window_s: float = 2.0
     d_outside: float = 3.0         # visible ball outside the pitch lines
     d_few_players: float = 1.0     # fewer than 18 tracked (stoppages, camera moves)
     d_set_piece: float = 1.5       # inside a tagged set-piece window
@@ -49,6 +51,7 @@ class Params:
     # decoder: cost (in log units) of each change of state
     switch_ha: float = 25.0        # H <-> A directly
     switch_d: float = 12.0         # into or out of D
+    d_cost_ratio: float = 1.0      # extra multiplier on switch_d only (>1: stoppages harder to start/end)
     stickiness: float = 1.0        # multiplies both switch costs (scaling them together stops the
                                    # decoder dodging an expensive H->A switch through a brief D)
     field_extra: dict = field(default_factory=dict)
@@ -158,8 +161,12 @@ def build_evidence(a: ATD, tags: list[dict], p: Params) -> Evidence:
 
     bspeed = np.nan_to_num(np.linalg.norm(np.gradient(a.ball, axis=0), axis=1) * ch.FPS, nan=0.0)
     in_play = ball_ok & ~out
+    bmed = pd.Series(np.where(ball_ok, bspeed, np.nan)).rolling(
+        max(1, int(p.still_window_s * ch.FPS)), center=True, min_periods=5).median().to_numpy()
+    still = ball_ok & (np.nan_to_num(bmed, nan=99.0) < 0.5)
     d_logit = (p.d_bias + p.d_slow * slow + p.d_missing * ~ball_ok + p.d_outside * out
-               + p.d_in_play * in_play + p.d_ball_moving * (in_play & (bspeed > 2.0))
+               + p.d_in_play * (in_play & ~still) + p.d_ball_moving * (in_play & (bspeed > 2.0))
+               + p.d_ball_still * still
                + p.d_few_players * (n_tracked < 18) + p.d_set_piece * set_piece)
     t_logit = np.where(ball_ok & near, np.where(home_closer, p.t_near, -p.t_near),
                        np.where(ball_ok & np.isfinite(np.minimum(dh, da)),
@@ -167,7 +174,8 @@ def build_evidence(a: ATD, tags: list[dict], p: Params) -> Evidence:
     t_logit = t_logit + p.t_tag * phase_team
 
     report = dict(code_agree=code_agree, code_sign=code_sign,
-                  frac_near=float(near[halves > 0].mean()))
+                  frac_near=float(near[halves > 0].mean()),
+                  frac_still=float(still[halves > 0].mean()))
     return Evidence(d_logit=d_logit, t_logit=t_logit, force_d=force_d, report=report)
 
 
@@ -189,7 +197,7 @@ def emissions(ev: Evidence) -> np.ndarray:
 
 def viterbi(ll: np.ndarray, p: Params) -> np.ndarray:
     T = len(ll)
-    sd, sha = p.switch_d * p.stickiness, p.switch_ha * p.stickiness
+    sd, sha = p.switch_d * p.stickiness * p.d_cost_ratio, p.switch_ha * p.stickiness
     trans = np.array([[0, -sd, -sd],
                       [-sd, 0, -sha],
                       [-sd, -sha, 0]], float)
