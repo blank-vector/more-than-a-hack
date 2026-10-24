@@ -34,9 +34,11 @@ class Params:
     slow_ms: float = 1.5           # mean player speed below this suggests dead ball (profile: 78% recall, 15% FA)
     speed_window_s: float = 1.0    # smoothing of mean player speed
     # dead-ball logit = bias + weights * evidence  (positive = D more likely)
-    d_bias: float = -1.5
-    d_slow: float = 2.0            # players slow
-    d_missing: float = 1.2         # ball not visible
+    d_bias: float = -2.0
+    d_slow: float = 1.5            # players slow
+    d_missing: float = 1.5         # ball not visible
+    d_in_play: float = -1.5        # ball visible inside the lines (live-play evidence)
+    d_ball_moving: float = -1.0    # visible ball moving faster than 2 m/s
     d_outside: float = 3.0         # visible ball outside the pitch lines
     d_few_players: float = 1.0     # fewer than 18 tracked (stoppages, camera moves)
     d_set_piece: float = 1.5       # inside a tagged set-piece window
@@ -154,7 +156,10 @@ def build_evidence(a: ATD, tags: list[dict], p: Params) -> Evidence:
             phase_team[s:e] += sign * tt
     phase_team = np.clip(phase_team, -1, 1)
 
+    bspeed = np.nan_to_num(np.linalg.norm(np.gradient(a.ball, axis=0), axis=1) * ch.FPS, nan=0.0)
+    in_play = ball_ok & ~out
     d_logit = (p.d_bias + p.d_slow * slow + p.d_missing * ~ball_ok + p.d_outside * out
+               + p.d_in_play * in_play + p.d_ball_moving * (in_play & (bspeed > 2.0))
                + p.d_few_players * (n_tracked < 18) + p.d_set_piece * set_piece)
     t_logit = np.where(ball_ok & near, np.where(home_closer, p.t_near, -p.t_near),
                        np.where(ball_ok & np.isfinite(np.minimum(dh, da)),

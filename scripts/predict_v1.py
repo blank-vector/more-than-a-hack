@@ -40,25 +40,42 @@ def possession_rate(labels: np.ndarray) -> tuple[int, float, float]:
     return len(poss), len(poss) / max(live_min, 1e-9), float(poss.mean()) if len(poss) else 0.0
 
 
-def sweep(a, ev, p):
-    section("Sweep: stickiness (scales every switch cost)", f"Pick the value whose rate is closest to {TARGET_RATE} per live minute.")
-    ll = v1.emissions(ev)
+TARGET_DEAD = 0.45  # dead-ball share: DFL matches 41-52%, typical top-flight football ~40-50%
+
+
+def decode(ll, halves, p):
+    labels = np.full(len(ll), "X", dtype="<U1")
+    for h in (1, 2):
+        idx = np.flatnonzero(halves == h)
+        labels[idx] = v1.LETTERS[v1.viterbi(ll[idx], p)]
+    return labels
+
+
+def sweep(a, tags, p):
+    section("Sweep: dead-ball threshold × stickiness",
+            f"Each cell: possessions per live minute / dead-ball share. Targets ≈ {TARGET_RATE} and ≈ {TARGET_DEAD:.0%}. "
+            "No ground truth used.")
     halves = ch.half_index(a.n_frames)
-    t = table("--stickiness", "possessions", "per live minute", "mean length", "dead-ball share")
+    biases, sticks = (-3.0, -2.0, -1.0, 0.0, 1.0), (1, 2, 4, 8)
+    t = table("--d-bias  \\  --stickiness", *[str(s_) for s_ in sticks])
     best = None
-    for c in (0.25, 0.5, 1, 2, 4, 8, 16, 32):
-        q = dataclasses.replace(p, stickiness=float(c))
-        labels = np.full(a.n_frames, "X", dtype="<U1")
-        for h in (1, 2):
-            idx = np.flatnonzero(halves == h)
-            labels[idx] = v1.LETTERS[v1.viterbi(ll[idx], q)]
-        n, rate, mean = possession_rate(labels)
-        close = abs(np.log(max(rate, 1e-9) / TARGET_RATE))
-        best = min(best or (close, c), (close, c))
-        t.add_row(str(c), str(n), Text(f"{rate:.1f}", style="bold green" if close < 0.15 else "yellow" if close < 0.4 else "red"), f"{mean:.1f} s",
-                  f"{np.mean(labels[halves > 0] == 'D'):.0%}")
+    with console.status("decoding 20 combinations (~1 min) ..."):
+        for b in biases:
+            ev = v1.build_evidence(a, tags, dataclasses.replace(p, d_bias=b))
+            ll = v1.emissions(ev)
+            cells = []
+            for s_ in sticks:
+                labels = decode(ll, halves, dataclasses.replace(p, d_bias=b, stickiness=float(s_)))
+                _, rate, _ = possession_rate(labels)
+                dead = float(np.mean(labels[halves > 0] == "D"))
+                miss = abs(np.log(max(rate, 1e-9) / TARGET_RATE)) + 3 * abs(dead - TARGET_DEAD)
+                best = min(best or (miss, b, s_), (miss, b, s_))
+                style = "bold green" if miss < 0.25 else "yellow" if miss < 0.6 else "red"
+                cells.append(Text(f"{rate:.1f} / {dead:.0%}", style=style))
+            t.add_row(str(b), *cells)
     console.print(t)
-    insight(f"closest to the target: stickiness {best[1]}  →  python scripts/predict_v1.py --stickiness {best[1]}")
+    insight(f"closest to both targets: --d-bias {best[1]} --stickiness {best[2]}\n"
+            f"   →  python scripts/predict_v1.py --d-bias {best[1]} --stickiness {best[2]}")
 
 
 def main():
@@ -80,7 +97,7 @@ def main():
         labels, ev = v1.predict(a, tags, p)
 
     if args.sweep:
-        sweep(a, ev, p)
+        sweep(a, tags, p)
         return
 
     out = ch.THIS_REPO / "outputs" / "submissions"
@@ -97,6 +114,7 @@ def main():
     graded = ch.graded_mask(len(labels))
     g = labels[graded]
     section("What it predicts (full match)")
+    console.print(f"dead-ball share: [bold]{np.mean(g == 'D'):.0%}[/bold]  [dim](target ≈ {TARGET_DEAD:.0%})[/dim]")
     t = table("label", "share of graded frames")
     for L, st in (("H", "red"), ("A", "blue"), ("D", "yellow")):
         t.add_row(f"[{st}]{L}[/{st}]", bar(np.mean(g == L), 20, st))
