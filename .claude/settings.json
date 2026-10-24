@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(~/code/mtah/data/**)",
+      "Read(./data/**)",
+      "Read(**/*.npz)",
+      "Read(**/*.mp4)",
+      "Read(**/*_atd.txt)",
+      "Read(**/*_atd.xml)",
+      "Read(**/*_homography.csv)",
+      "Read(**/*_smart_tagging.xml)"
+    ]
+  }
+}
