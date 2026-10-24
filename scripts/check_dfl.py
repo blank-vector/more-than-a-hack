@@ -12,8 +12,13 @@ BallStatus). This script confirms they load, and compares possession structure w
 challenge's public 5 minutes (17 possessions, mean 14.2 s).
 """
 import argparse
+import sys
+from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from possession.report import bar, console, grade, insight, save, section, table, title  # noqa: E402
 
 MATCHES = ["J03WMX", "J03WN1", "J03WOH", "J03WOY", "J03WPY", "J03WQQ", "J03WR9"]
 
@@ -39,10 +44,18 @@ def check(match_id: str) -> dict:
     owner = df["ball_owning_team_id"].astype(str)
     lab = np.where(state.str.contains("dead"), "D", np.where(owner == str(home_id), "H", "A"))
 
-    print(f"\n== {match_id}: {len(df)} frames @ {fps} fps, home = {ds.metadata.teams[0].name}")
-    print("ball_state:", state.value_counts().to_dict())
-    print("ball_owning_team_id:", df["ball_owning_team_id"].value_counts(dropna=False).to_dict())
-    print(f"ball position missing on {df['ball_x'].isna().mean():.1%} of frames")
+    state_counts = state.value_counts()
+    section(f"{match_id} · {ds.metadata.teams[0].name} vs {ds.metadata.teams[1].name}",
+            f"{len(df):,} frames @ {fps:.0f} fps")
+    has_state = state.isin(["alive", "dead"]).mean()
+    has_owner = df["ball_owning_team_id"].notna().mean()
+    t = table("label field", "present on", "verdict")
+    t.add_row("ball alive/dead (BallStatus)", bar(has_state, 14, "green"),
+              grade(has_state, 0.95, 0.5, fmt="{:.0%}"))
+    t.add_row("owning team (BallPossession)", bar(has_owner, 14, "green"),
+              grade(has_owner, 0.95, 0.5, fmt="{:.0%}"))
+    t.add_row("ball position", bar(1 - df["ball_x"].isna().mean(), 14, "green"), "")
+    console.print(t)
 
     poss, dead = [], []
     for p in df["period_id"].unique():
@@ -50,10 +63,15 @@ def check(match_id: str) -> dict:
             (dead if label == "D" else poss).append(n / fps)
     poss, dead = np.array(poss), np.array(dead)
     mins = (lab != "D").sum() / fps / 60
-    print(f"possessions: {len(poss)} ({len(poss) / mins:.1f} per alive minute), "
-          f"duration s: mean {poss.mean():.1f}  median {np.median(poss):.1f}  p90 {np.percentile(poss, 90):.1f}")
-    print(f"dead-ball stretches: {len(dead)}, duration s: mean {dead.mean():.1f}  median {np.median(dead):.1f}")
-    print(f"label share: H {np.mean(lab == 'H'):.1%}  A {np.mean(lab == 'A'):.1%}  D {np.mean(lab == 'D'):.1%}")
+    t = table("", "count", "mean s", "median s", "p90 s")
+    t.add_row("possessions", f"{len(poss)}", grade(poss.mean(), 18, 10, fmt="{:.1f}"),
+              f"{np.median(poss):.1f}", f"{np.percentile(poss, 90):.1f}")
+    t.add_row("dead-ball stretches", f"{len(dead)}", f"{dead.mean():.1f}", f"{np.median(dead):.1f}",
+              f"{np.percentile(dead, 90):.1f}")
+    console.print(t)
+    console.print(f"labels: [red]H {np.mean(lab == 'H'):.1%}[/red]  [blue]A {np.mean(lab == 'A'):.1%}[/blue]  "
+                  f"[yellow]D {np.mean(lab == 'D'):.1%}[/yellow]   ·   {len(poss) / mins:.1f} possessions per alive minute   "
+                  f"·   raw ball_state values: {dict(state_counts)}")
     return dict(n_poss=len(poss), mean_poss=poss.mean())
 
 
@@ -61,6 +79,10 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--all", action="store_true")
     args = ap.parse_args()
-    for m in MATCHES if args.all else MATCHES[:1]:
-        check(m)
-    print("\nChallenge public window for comparison: 17 possessions, mean 14.2 s")
+    title("Open DFL data as training labels", "public data · safe to share")
+    res = [check(m) for m in (MATCHES if args.all else MATCHES[:1])]
+    section("Verdict")
+    insight("challenge public window: 17 possessions, mean 14.2 s. "
+            f"DFL here: mean {np.mean([r['mean_poss'] for r in res]):.1f} s. "
+            "Similar means → the two label definitions likely agree; very different → we'll need to adapt.")
+    save("check_dfl")

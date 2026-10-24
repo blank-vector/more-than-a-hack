@@ -3,7 +3,7 @@
     python scripts/profile_atd.py
 
 Everything printed is a summary (percentages, percentiles, counts), never frames or positions,
-so the output is safe to share. It is also saved to outputs/profile_atd.txt.
+so the output is safe to share. A plain-text copy is saved to outputs/profile_atd.txt.
 
 What we want to learn, and why:
   1. how much ball is missing, and in what shape (many short gaps vs a few long ones)
@@ -12,9 +12,7 @@ What we want to learn, and why:
   3. on the public 5 minutes: how ball visibility and player speeds differ between
      possession (H/A) and dead ball (D) -> first hints for a dead-ball detector
 """
-import io
 import sys
-from contextlib import redirect_stdout
 from pathlib import Path
 
 import numpy as np
@@ -22,6 +20,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from possession import atd as atd_mod  # noqa: E402
 from possession import challenge as ch  # noqa: E402
+from possession.report import bar, console, grade, insight, save, section, table, title  # noqa: E402
 
 
 def runs(mask: np.ndarray) -> np.ndarray:
@@ -31,81 +30,107 @@ def runs(mask: np.ndarray) -> np.ndarray:
     return np.flatnonzero(d == -1) - np.flatnonzero(d == 1)
 
 
-def pct(a, qs=(10, 25, 50, 75, 90, 99)):
+def pct_row(name: str, a: np.ndarray, qs=(10, 25, 50, 75, 90, 99), fmt="{:.2f}"):
     if len(a) == 0:
-        return "n/a"
-    return "  ".join(f"p{q}={np.percentile(a, q):.2f}" for q in qs)
+        return [name, str(0)] + ["-"] * len(qs)
+    return [name, f"{len(a):,}"] + [fmt.format(np.percentile(a, q)) for q in qs]
 
 
 def main():
-    a = atd_mod.load()
+    title("Challenge tracking profile", "aggregate stats only · safe to share")
+    with console.status("loading tracking (first run parses the file, ~1-2 min) ..."):
+        a = atd_mod.load()
     T = a.n_frames
     graded = ch.graded_mask(T)
+    halves = ch.half_index(T)
     fps = ch.FPS
     ball_ok = ~np.isnan(a.ball[:, 0])
     pres = ~np.isnan(a.xy[..., 0])
 
-    print("=== 1. Ball visibility")
-    print(f"frames {T}, graded {graded.sum()}")
-    print(f"ball visible: all {ball_ok.mean():.1%}   graded {ball_ok[graded].mean():.1%}")
-    for half in (1, 2):
-        h = ch.half_index(T) == half
-        print(f"  half {half}: {ball_ok[h].mean():.1%}")
+    # ------------------------------------------------------------------ 1. ball
+    section("1 · Ball visibility", "How often the tracker sees the ball, and the shape of the gaps.")
+    t = table("", "ball visible")
+    t.add_row("all frames", bar(ball_ok.mean(), style="green"))
+    t.add_row("graded frames", bar(ball_ok[graded].mean(), style="green"))
+    for h in (1, 2):
+        t.add_row(f"  half {h}", bar(ball_ok[halves == h].mean(), style="green"))
+    console.print(t)
 
-    gaps = []
-    for half in (1, 2):
-        h = ch.half_index(T) == half
-        gaps.append(runs(~ball_ok & h))
-    gaps = np.concatenate(gaps) / fps
-    print(f"\nball gaps in graded halves: {len(gaps)} gaps, seconds: {pct(gaps)}")
+    gaps = np.concatenate([runs(~ball_ok & (halves == h)) for h in (1, 2)]) / fps
+    vis = np.concatenate([runs(ball_ok & (halves == h)) for h in (1, 2)]) / fps
+    t = table("seconds", "count", "p10", "p25", "p50", "p75", "p90", "p99", title="Stretch lengths (graded)")
+    t.add_row(*pct_row("[red]ball missing[/red]", gaps))
+    t.add_row(*pct_row("[green]ball visible[/green]", vis))
+    console.print(t)
+
+    t = table("gaps longer than", "gaps", "share of all missing time", title="Where the missing time lives")
     missing = gaps.sum()
     for s in (0.2, 0.5, 1, 2, 5, 10, 30):
-        print(f"  share of missing time in gaps longer than {s:>4}s: {gaps[gaps > s].sum() / missing:.1%}"
-              f"   (n={int((gaps > s).sum())})")
-    vis = np.concatenate([runs(ball_ok & (ch.half_index(T) == h)) for h in (1, 2)]) / fps
-    print(f"ball visible stretches: {len(vis)}, seconds: {pct(vis)}")
+        share = gaps[gaps > s].sum() / missing if missing else 0
+        t.add_row(f"{s} s", f"{int((gaps > s).sum()):,}", bar(share, style="red"))
+    console.print(t)
+    long_share = gaps[gaps > 2].sum() / missing if missing else 0
+    insight(f"{long_share:.0%} of missing-ball time is in gaps over 2 s "
+            + ("→ long gaps dominate: we need team-shape signals, not just interpolation."
+               if long_share > 0.5 else "→ mostly short gaps: interpolation/bridging should go far."))
 
-    print("\n=== 2. Player tracks")
-    n_home = pres[:, a.team == 0].sum(1)
-    n_away = pres[:, a.team == 1].sum(1)
-    print(f"slots: {len(a.team)} (home {int((a.team == 0).sum())}, away {int((a.team == 1).sum())})")
-    print(f"tracked per graded frame: home {pct(n_home[graded], (5, 50, 95))}   away {pct(n_away[graded], (5, 50, 95))}")
-    print(f"graded frames with <9 tracked on a team: home {(n_home[graded] < 9).mean():.1%}  away {(n_away[graded] < 9).mean():.1%}")
+    # ------------------------------------------------------------------ 2. players
+    section("2 · Player tracks", "Slots are tracklets, not people. How many are visible, and how long do they last?")
+    n_home = pres[:, a.team == 0].sum(1)[graded]
+    n_away = pres[:, a.team == 1].sum(1)[graded]
+    t = table("", "slots", "tracked p5", "p50", "p95", "frames with < 9 tracked")
+    for name, n, k in (("[red]home[/red]", n_home, 0), ("[blue]away[/blue]", n_away, 1)):
+        t.add_row(name, str(int((a.team == k).sum())), f"{np.percentile(n, 5):.0f}",
+                  f"{np.percentile(n, 50):.0f}", f"{np.percentile(n, 95):.0f}",
+                  grade((n < 9).mean(), 0.02, 0.10, higher_is_better=False, fmt="{:.1%}"))
+    console.print(t)
+
     frag = np.concatenate([runs(pres[:, s] & graded) for s in range(pres.shape[1])]) / fps
-    print(f"track fragments: {len(frag)}, seconds: {pct(frag)}")
     sp = a.speed[graded][pres[graded]]
-    print(f"player speed m/s (graded): {pct(sp[~np.isnan(sp)], (5, 50, 95, 99))}")
+    sp = sp[~np.isnan(sp)]
+    t = table("", "count", "p10", "p25", "p50", "p75", "p90", "p99")
+    t.add_row(*pct_row("track fragment length (s)", frag))
+    t.add_row(*pct_row("player speed (m/s)", sp))
+    console.print(t)
+    insight(f"median track fragment lasts {np.median(frag):.1f} s "
+            + ("→ too short to follow individual players; work at team level."
+               if np.median(frag) < 30 else "→ long enough for some per-player features."))
 
     bx = a.ball[graded & ball_ok]
     out = (np.abs(bx[:, 0]) > ch.PITCH[0] / 2) | (np.abs(bx[:, 1]) > ch.PITCH[1] / 2)
-    print(f"\nvisible ball outside the pitch lines (graded): {out.mean():.1%}")
+    console.print(f"visible ball outside the pitch lines (graded): [bold]{out.mean():.1%}[/bold]")
 
-    print("\n=== 3. Public 5 minutes, by ground-truth label")
+    # ------------------------------------------------------------------ 3. public window
+    section("3 · Public 5 minutes, by true label",
+            "What differs between possession (H/A) and dead ball (D)? These are dead-ball detector hints.")
     gt = ch.public_gt()
-    names = {0: "H", 1: "A", 2: "D"}
     mean_speed = np.nanmean(np.where(pres, a.speed, np.nan), axis=1)
     bvel = np.linalg.norm(np.gradient(a.ball, axis=0), axis=1) * fps
-    for code, name in names.items():
+    t = table("true label", "frames", "ball visible", "mean player speed", "ball speed (median)")
+    styles = {0: ("H home", "red"), 1: ("A away", "blue"), 2: ("D dead", "yellow")}
+    for code, (name, st) in styles.items():
         m = gt == code
-        if not m.any():
-            continue
-        print(f"  {name}: frames {m.sum():>5}  ball visible {ball_ok[m].mean():.1%}  "
-              f"mean player speed {np.nanmean(mean_speed[m]):.2f} m/s  "
-              f"ball speed median {np.nanmedian(bvel[m & ball_ok]):.1f} m/s")
+        if m.any():
+            t.add_row(f"[{st}]{name}[/{st}]", f"{m.sum():,}", bar(ball_ok[m].mean(), 12, "green"),
+                      f"{np.nanmean(mean_speed[m]):.2f} m/s", f"{np.nanmedian(bvel[m & ball_ok]):.1f} m/s")
+    console.print(t)
+
     alive = (gt == 0) | (gt == 1)
-    m_ok = ~np.isnan(mean_speed)
-    for thr in (1.0, 1.5, 2.0, 2.5):
-        slow = (mean_speed < thr) & m_ok
-        print(f"  mean player speed < {thr} m/s: in D {slow[gt == 2].mean():.1%}  in H/A {slow[alive].mean():.1%}")
+    ok = ~np.isnan(mean_speed)
+    t = table("rule: mean player speed <", "catches D (want high)", "false alarms in H/A (want low)",
+              title="Can 'everyone slows down' detect dead ball?")
+    best = (-1.0, 0.0)
+    for thr in (1.0, 1.5, 2.0, 2.5, 3.0):
+        slow = (mean_speed < thr) & ok
+        recall, fa = slow[gt == 2].mean(), slow[alive].mean()
+        best = max(best, (recall - fa, thr))
+        t.add_row(f"{thr} m/s", bar(recall, 14, "green"), bar(fa, 14, "red"))
+    console.print(t)
+    if best[0] > -1:
+        insight(f"best separation at {best[1]} m/s (recall − false alarms = {best[0]:.2f}). "
+                "Above ~0.4 means speed alone is a useful dead-ball signal.")
 
 
 if __name__ == "__main__":
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        main()
-    text = buf.getvalue()
-    print(text)
-    out = ch.THIS_REPO / "outputs"
-    out.mkdir(exist_ok=True)
-    (out / "profile_atd.txt").write_text(text)
-    print(f"saved to {out / 'profile_atd.txt'}")
+    main()
+    save("profile_atd")

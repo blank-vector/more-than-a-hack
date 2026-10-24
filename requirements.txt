@@ -9,4 +9,5 @@ mplsoccer
 opencv-python
 jupyter
 ipykernel
+rich
 -e .

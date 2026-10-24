@@ -16,6 +16,7 @@ Our pipeline for [Phase 1 of the challenge](https://github.com/metrica-sports/mo
 ## Challenge scripts
 
 ```bash
+python scripts/score.py         # readable scoreboard on the public 5 minutes (official metric)
 python scripts/profile_atd.py   # aggregate stats of the real tracking (safe to share)
 python scripts/check_dfl.py     # verify open DFL data as training labels (public data)
 ```
