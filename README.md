@@ -2,6 +2,8 @@
 
 Our pipeline for [Phase 1 of the challenge](https://github.com/metrica-sports/more-than-a-hack-2027): label every frame of FC Barcelona vs Athletic Club as `H` / `A` / `D` / `X`, ranked on **spellF1**.
 
+**Write-up:** [docs/RESULTS.md](docs/RESULTS.md) (current state) · [docs/JOURNAL.md](docs/JOURNAL.md) (how we got here)
+
 ## Layout on disk
 
 ```
@@ -22,6 +24,8 @@ python scripts/profile_gaps.py  # what happens while the ball is missing
 python scripts/check_dfl.py     # verify open DFL data as training labels (public data)
 python scripts/predict_v1.py --sweep   # v1: pick stickiness by possession rate (no ground truth)
 python scripts/predict_v1.py --stickiness S   # v1: write outputs/submissions/v1.csv
+python scripts/diagnose_public.py            # truth vs prediction timeline on the public 5 min
+python scripts/prepare_dfl.py                # v2 stage 1: DFL training data (public)
 ```
 
 `src/possession/challenge.py` imports the official `games.py` and `possession_metrics.py` from the official repo, so we always score exactly like the organisers. `src/possession/atd.py` parses the ATD once into a cache in `$MTAH_DATA_DIR/cache`.
