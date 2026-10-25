@@ -45,7 +45,18 @@ All public-window numbers are **sanity checks only**: 17 possessions, ~0.06 spel
 | baseline_smooth50 (official) | `python starter/baseline.py` | — | 0.326 · 0.621 · 26 |
 | v1 | `predict_v1.py --d-bias -1.0 --stickiness 2` | 4.2 · 47% · 171 | 0.315 · 0.680 · 16 |
 | v1.1 | `predict_v1.py --d-bias -2.0 --stickiness 2 --d-cost-ratio 4` | 3.6 · 44% · 107 | 0.400 · 0.700 · 13 |
-| **v2 (current)** | `train_v2.py` then `predict_v2.py` (min_hold 4.0 s, switch-ha 40, switch-d 40) | 3.2 · 41% · 106 | **0.571 · 0.759 · 11** |
+| v2 | `train_v2.py` then `predict_v2.py` (min_hold 4.0 s, switch-ha 40, switch-d 40) | 3.2 · 41% · 106 | 0.571 · 0.759 · 11 |
+| **v2b (current)** | `sweep_hold.py` then `predict_v2.py --name v2b` (min_hold 2.0 s, switch-ha 20, switch-d 40, no shift) | 3.8 · 41% · 103 | **0.600 · 0.764 · 11** |
+
+### Round 2: label hold (each hold has its own CV labels, so CV is not comparable across rows)
+
+| Hold | DFL label rate | CV spellF1 | Decoder | Median lag on DFL | Challenge poss/live-min |
+|---|---|---|---|---|---|
+| **2 s (chosen)** | 5.5 | 0.656 | 20 / 40 | 0.00 s | **3.8** |
+| 3 s | 4.6 | 0.699 | 20 / 40 | 0.00 s | 3.5 |
+| 4 s | 4.0 | 0.723 | 40 / 40 | 0.00 s | 3.2 |
+
+No lag on DFL, so no shift; the +0.6 s seen on the public window rests on 10 matched changes.
 
 ### Honest validation: leave-one-match-out on 7 degraded DFL matches (official spellF1, ~207 possessions each)
 

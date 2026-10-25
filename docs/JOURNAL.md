@@ -98,4 +98,8 @@ DFL/Sportec open data, 7 Bundesliga matches: per-frame owning team and alive/dea
 ### Round 2 (built, 25 Oct): hold × decoder × lag — `scripts/sweep_hold.py`
 For holds of 2, 3 and 4 s: leave-one-match-out on DFL tunes the switch costs **and a lag shift** (every predicted change moved earlier by 0–1 s, kept only if it raises spellF1); the median lag of our changes is measured before and after; then the model is retrained on all DFL and the challenge match is predicted. The hold is picked by the challenge prediction's possession rate (≈ 4.2 per live minute), never by CV score.
 
+**Round 2 results:** a 2 s hold brings the challenge prediction to 3.8 possessions per live minute (4 s: 3.2), with 103 stoppages and 41% dead. No systematic lag on DFL (median 0.00 s), so no shift. Public window: spellF1 0.600 (v2: 0.571); segment 8 now a full match (0.64). Still 11 vs 17 possessions: the sub-4-second possessions and three of the four public stoppages are still missed.
+
+**Why not chase 4.2 exactly:** it comes from 17 possessions, so it is uncertain by roughly ±25% (about ±1 per minute). 3.8 is inside that band.
+
 **Earlier plan (kept):** (dead/alive, team) → decoder tuned by **official spellF1 on held-out DFL matches**, the first honest validation set (~400 possessions per match).
