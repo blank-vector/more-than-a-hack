@@ -56,6 +56,8 @@ All public-window numbers are **sanity checks only**: 17 possessions, ~0.06 spel
 | 3 s | 4.6 | 0.699 | 20 / 40 | 0.00 s | 3.5 |
 | 4 s | 4.0 | 0.723 | 40 / 40 | 0.00 s | 3.2 |
 
+**Training copies (hold 2 s):** 1 copy 0.657 → **3 copies 0.671** mean CV spellF1 (v1 rules at this hold: 0.373). Adopted.
+
 No lag on DFL, so no shift; the +0.6 s seen on the public window rests on 10 matched changes.
 
 ### Honest validation: leave-one-match-out on 7 degraded DFL matches (official spellF1, ~207 possessions each)

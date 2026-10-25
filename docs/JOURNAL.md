@@ -105,6 +105,7 @@ For holds of 2, 3 and 4 s: leave-one-match-out on DFL tunes the switch costs **a
 ### Round 3 (built, 25 Oct): training copies + Smart Tagging restarts
 - **Training copies:** each DFL match can be degraded several times with different random gaps (`--copies N`), so the model sees more varied missing-ball patterns. Measurable on DFL: same labels, so CV scores at different copy counts *are* comparable.
 - **Smart Tagging restart prior** (challenge only, applied to the probabilities before decoding): dead ball boosted for 6 s before each set-piece window through its middle; live play and the restarting team (when named) boosted for 3 s after it; dead ball forced from each goal to the next kick-off. Can't be validated on DFL (no tags); judged by the full-match stoppage count, the share of set pieces preceded by predicted dead ball, and the public timeline.
+- **Copies result (hold 2 s, 7 held-out matches):** 1 copy → mean spellF1 **0.657** (decoder 10/40); 3 copies → **0.671** (decoder 20/40). +0.014, better on 5 of 7 matches, one equal, one −0.004. Adopted. Both still under-segment on DFL (e.g. 251 vs 298 possessions), the same pattern as on the challenge.
 - Safety fix: `train_v2.py` now reads the current config and only saves with `--save`, so it can't silently reset the hold chosen by the sweep.
 
 **Earlier plan (kept):** (dead/alive, team) → decoder tuned by **official spellF1 on held-out DFL matches**, the first honest validation set (~400 possessions per match).
