@@ -44,11 +44,39 @@ All public-window numbers are **sanity checks only**: 17 possessions, ~0.06 spel
 |---|---|---|---|
 | baseline_smooth50 (official) | `python starter/baseline.py` | — | 0.326 · 0.621 · 26 |
 | v1 | `predict_v1.py --d-bias -1.0 --stickiness 2` | 4.2 · 47% · 171 | 0.315 · 0.680 · 16 |
-| **v1.1 (current)** | `predict_v1.py --d-bias -2.0 --stickiness 2 --d-cost-ratio 4` | 3.6 · 44% · 107 | **0.400 · 0.700 · 13** |
+| v1.1 | `predict_v1.py --d-bias -2.0 --stickiness 2 --d-cost-ratio 4` | 3.6 · 44% · 107 | 0.400 · 0.700 · 13 |
+| **v2 (current)** | `train_v2.py` then `predict_v2.py` (min_hold 4.0 s, switch-ha 40, switch-d 40) | 3.2 · 41% · 106 | **0.571 · 0.759 · 11** |
+
+### Honest validation: leave-one-match-out on 7 degraded DFL matches (official spellF1, ~207 possessions each)
+
+| Held-out match | v2 | v1 rules |
+|---|---|---|
+| J03WMX | 0.708 | 0.461 |
+| J03WN1 | 0.708 | 0.386 |
+| J03WOH | 0.708 | 0.381 |
+| J03WOY | 0.669 | 0.459 |
+| J03WPY | 0.768 | 0.433 |
+| J03WQQ | 0.759 | 0.448 |
+| J03WR9 | 0.743 | 0.434 |
+| **Mean** | **0.723** | **0.429** |
+
+v2 wins on every match. Absolute levels are optimistic (synthetic noise, translated labels); the gap between methods is the reliable part. Best decoder setting (40, 40) sits inside the grid, on a smooth plateau.
 
 Full-match targets (no ground truth used): ~4.2 possessions per live minute, ~45% dead time, ~105 stoppages.
 
-## Where v1.1 still fails (public window, `scripts/diagnose_public.py`)
+## Where v2 still fails (public window, `scripts/diagnose_public.py`)
+
+| Failure mode | Segments | Status vs v1.1 |
+|---|---|---|
+| Short possessions (0.8–3.5 s) | 3, 11, 13, 14, 17 missed · 8 partial (0.49) | Better: 8 no longer merges 7 and 9 (now 0.80 and 0.95) |
+| Stoppages with the ball carried | 15, 20 | Still missed |
+| Short real stoppage | 6 | Still missed |
+| Boundary timing | — | Slightly late: median +1.0 s |
+| Under-segmenting | 11 vs 17 possessions; 3.2 per live minute on the full match | New focus |
+
+Verdicts for v2: 9 match · 3 partial · 9 missed out of 21 segments.
+
+## Where v1.1 failed (kept for reference)
 
 | Failure mode | Segments | Status |
 |---|---|---|

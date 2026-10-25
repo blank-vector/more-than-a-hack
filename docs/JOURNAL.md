@@ -85,4 +85,14 @@ DFL/Sportec open data, 7 Bundesliga matches: per-frame owning team and alive/dea
 
 **Stage 2–3 (built):** 62 features computed identically on both datasets (speeds recomputed from positions; attacking direction inferred per period from where each team stands), two LightGBM models (dead vs alive; home vs away on live frames), and a Viterbi decoder whose two switch costs are chosen by the official spellF1 on held-out DFL matches.
 
-**Next:** run the leave-one-match-out validation on real DFL, then (dead/alive, team) → decoder tuned by **official spellF1 on held-out DFL matches**, the first honest validation set (~400 possessions per match).
+**Results (25 Oct):**
+- Leave-one-match-out on 7 DFL matches: **v2 0.723 vs v1 rules 0.429** mean spellF1, v2 ahead on every match. First comparison measured on ~1,450 possessions instead of 17.
+- Decoder grid: smooth plateau, best at switch-ha 40 / switch-d 40, not on an edge.
+- Challenge match: 202 possessions (3.2 per live minute, below the ~4.2 target), 106 stoppages, 41% dead, Barcelona 56% of live play.
+- Public window (sanity): spellF1 **0.571**, macroF1 0.759, dead-ball F1 0.561, 11 vs 17 possessions. Segments 7 and 9 now match (0.80, 0.95): catching segment 8 partially stopped the merge.
+
+**Remaining problems:** v2 under-segments (short possessions still lost), switches about 1 s late, and still misses carried-ball stoppages.
+
+**A subtlety about `min_hold`:** changing it changes the *labels* the validation scores against, so cross-validation scores at different holds are not comparable. The hold has to be chosen from the definition (matching the challenge's possession rate), not from the CV score.
+
+**Earlier plan (kept):** (dead/alive, team) → decoder tuned by **official spellF1 on held-out DFL matches**, the first honest validation set (~400 possessions per match).
