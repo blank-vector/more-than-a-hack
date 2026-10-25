@@ -35,6 +35,8 @@ def main():
     ap.add_argument("--switch-d", type=float)
     ap.add_argument("--min-hold", type=float, help="seconds")
     ap.add_argument("--shift", type=float, help="seconds to move predicted changes earlier")
+    ap.add_argument("--copies", type=int, help="degraded copies of each DFL match for training")
+    ap.add_argument("--no-tags", action="store_true", help="skip the Smart Tagging restart prior")
     args = ap.parse_args()
 
     cfg_path = ch.THIS_REPO / "outputs" / "v2_config.json"
@@ -42,7 +44,8 @@ def main():
     hold = int(args.min_hold * 25) if args.min_hold is not None else cfg["min_hold"]
     shift = int(round(args.shift * 25)) if args.shift is not None else int(cfg.get("shift", 0))
     dec = v2.Decoder(switch_ha=args.switch_ha or cfg["switch_ha"], switch_d=args.switch_d or cfg["switch_d"], shift=shift)
-    title(f"v2 submission · {args.name}",
+    copies = args.copies or int(cfg.get("copies", 1))
+    title(f"v2 submission · {args.name}" + ("" if args.no_tags else " · + Smart Tagging restarts") + f" · {copies} copies",
           f"min_hold {hold / 25:.1f} s · switch-ha {dec.switch_ha:g} · switch-d {dec.switch_d:g} · shift {dec.shift / 25:.2f} s")
 
     with console.status("training on all DFL matches ..."):
@@ -53,9 +56,11 @@ def main():
             except Exception as e:
                 console.print(f"[red]✗[/red] {mid}: {e}")
                 continue
-            a = dfl.degrade(m, seed=100 + i)
-            Xs.append(v2.features(a, m.period, m.pitch, m.fps))
-            ys.append(dfl.controlled_possession(m.truth, m.period, hold))
+            y = dfl.controlled_possession(m.truth, m.period, hold)
+            for c in range(copies):
+                a = dfl.degrade(m, seed=100 + i + 1000 * c)
+                Xs.append(v2.features(a, m.period, m.pitch, m.fps))
+                ys.append(y)
         models = v2.fit(pd.concat(Xs, ignore_index=True), np.concatenate(ys))
 
     with console.status("predicting the challenge match ..."):
@@ -64,7 +69,11 @@ def main():
         X = v2.features(a, halves, ch.PITCH, ch.FPS)
         p = v2.proba(models, X)
         # before each half's kick-off (from Smart Tagging) the ball is always dead
-        ev = v1.build_evidence(a, v1.load_tags(), v1.Params())
+        tags = v1.load_tags()
+        ev = v1.build_evidence(a, tags, v1.Params())
+        tag_report = None
+        if not args.no_tags:
+            p, tag_report = v2.apply_tag_prior(p, tags, v2.TagPrior())
         p[ev.force_d] = [1.0, 0.0, 0.0]
         labels = np.full(a.n_frames, "X", dtype="<U1")
         graded = halves > 0
@@ -95,6 +104,11 @@ def main():
     console.print(t)
     console.print(f"dead-ball share: [bold]{np.mean(g == 'D'):.0%}[/bold] (≈ 45%)   ·   "
                   f"Barcelona share of live play: [bold]{np.mean(g == 'H') / max(np.mean(np.isin(g, ['H', 'A'])), 1e-9):.0%}[/bold]")
+    codes = np.select([labels == "D", labels == "H", labels == "A"], [v2.D, v2.H, v2.A], -1)
+    cov = v2.tag_coverage(codes, tags)
+    console.print(f"set-piece tags preceded by predicted dead ball: [bold]{cov:.0%}[/bold]"
+                  + (f"   ·   prior applied to {tag_report['set_pieces']} set pieces, {tag_report['goals']} goals"
+                     if tag_report else "   ·   (no tag prior)"))
     insight(f"next: python scripts/score.py  ·  python scripts/diagnose_public.py {path.relative_to(ch.THIS_REPO)}")
 
 

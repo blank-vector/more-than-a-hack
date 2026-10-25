@@ -250,3 +250,71 @@ def to_official(codes: np.ndarray, period: np.ndarray) -> np.ndarray:
     first = np.flatnonzero(np.diff(period, prepend=-1) != 0)
     off[first] = 3
     return off
+
+
+# ----------------------------------------------------------------------------- Smart Tagging prior
+@dataclass
+class TagPrior:
+    """Challenge-only nudges from Smart Tagging (DFL has no tags, so these can't be learned there).
+
+    A SET PIECES tag marks a ~5 s window around a restart: the ball is dead just before the
+    window and in play just after it, owned by the restarting team when the tag names one.
+    After a GOALS tag the ball is dead until the following kick-off.
+    """
+    dead_before_s: float = 6.0     # how far before the window start the ball is assumed dead
+    dead_boost: float = 2.0        # log-odds added to D in that stretch (and the first half of the window)
+    alive_after_s: float = 3.0     # stretch after the window where play is assumed live
+    alive_boost: float = 1.5       # log-odds added against D there
+    team_boost: float = 1.0        # log-odds for the restarting team there (if the tag names it)
+    goal_max_gap_s: float = 180.0  # longest goal → kick-off gap treated as dead
+
+
+def _team_of(tag: dict) -> int | None:
+    v = (tag["tags"].get("Team") or "").strip().lower()
+    return H if v.startswith("barcelona") else A if (v.startswith("atletic") or v.startswith("athletic")) else None
+
+
+def apply_tag_prior(p: np.ndarray, tags: list[dict], prior: TagPrior, fps: float = 25.0) -> tuple[np.ndarray, dict]:
+    """Return re-weighted probabilities and a small report of what was applied."""
+    T = len(p)
+    logit = np.log(np.clip(p, 1e-6, 1))
+    n_sp = n_goal = 0
+    for t in tags:
+        code = (t["code"] or "").upper()
+        s, e = max(0, t["start_frame"]), min(T, t["end_frame"])
+        if e <= s:
+            continue
+        if "SET PIECE" in code:
+            n_sp += 1
+            mid = (s + e) // 2
+            a = max(0, s - int(prior.dead_before_s * fps))
+            logit[a:mid, D] += prior.dead_boost
+            b = min(T, e + int(prior.alive_after_s * fps))
+            logit[e:b, D] -= prior.alive_boost
+            team = _team_of(t)
+            if team is not None:
+                logit[e:b, team] += prior.team_boost
+        elif code.startswith("GOAL"):
+            nxt = [u for u in tags if "SET PIECE" in (u["code"] or "").upper()
+                   and "after goal" in (u["tags"].get("Type") or "").lower() and u["start_frame"] >= e]
+            if nxt:
+                k = min(u["start_frame"] for u in nxt)
+                if k - e <= prior.goal_max_gap_s * fps:
+                    logit[e:k, D] += 10.0
+                    n_goal += 1
+    q = np.exp(logit - logit.max(1, keepdims=True))
+    return q / q.sum(1, keepdims=True), dict(set_pieces=n_sp, goals=n_goal)
+
+
+def tag_coverage(labels: np.ndarray, tags: list[dict], fps: float = 25.0) -> float:
+    """Share of set-piece tags whose 6 s lead-in contains some predicted D (higher = consistent)."""
+    hits = n = 0
+    for t in tags:
+        if "SET PIECE" not in (t["code"] or "").upper():
+            continue
+        s = t["start_frame"]
+        seg = labels[max(0, s - int(6 * fps)): s + 1]
+        if len(seg):
+            n += 1
+            hits += int(np.any(seg == D))
+    return hits / max(n, 1)

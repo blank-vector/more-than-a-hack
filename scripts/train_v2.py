@@ -2,6 +2,8 @@
 
     python scripts/train_v2.py                 # leave-one-match-out over the DFL matches (~10-20 min)
     python scripts/train_v2.py --min-hold 3    # try another label translation (seconds)
+    python scripts/train_v2.py --copies 3      # train on 3 differently-degraded copies of each match
+    python scripts/train_v2.py --save          # write the tuned decoder to outputs/v2_config.json
 
 For each DFL match: train on the others (degraded), predict it (degraded), decode, and score
 with the OFFICIAL spellF1 against its translated labels. v1's rules run on the same degraded
@@ -37,12 +39,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--min-hold", type=float, default=None, help="seconds; default = prepare_dfl's choice")
     ap.add_argument("--matches", type=int, default=0, help="use only the first N matches (quick test)")
+    ap.add_argument("--copies", type=int, default=1, help="degraded copies of each training match")
+    ap.add_argument("--save", action="store_true", help="save the tuned settings to outputs/v2_config.json")
     args = ap.parse_args()
 
     title("v2 · stage 2 · train on DFL, validate with the official spellF1", "public data · safe to share")
+    cfg_path = ch.THIS_REPO / "outputs" / "v2_config.json"
+    cfg0 = json.loads(cfg_path.read_text()) if cfg_path.exists() else {}
     hold_file = dfl.cache_dir() / "min_hold.txt"
-    hold = int(args.min_hold * 25) if args.min_hold is not None else int(hold_file.read_text()) if hold_file.exists() else 100
-    console.print(f"label translation: min_hold = {hold / 25:.1f} s")
+    hold = (int(args.min_hold * 25) if args.min_hold is not None else cfg0.get("min_hold")
+            or (int(hold_file.read_text()) if hold_file.exists() else 50))
+    console.print(f"label translation: min_hold = {hold / 25:.1f} s · training copies per match: {args.copies}")
 
     data = []
     with console.status("loading, degrading and building features ..."):
@@ -53,10 +60,11 @@ def main():
             except Exception as e:
                 console.print(f"[red]✗[/red] {mid}: {e}")
                 continue
-            a = dfl.degrade(m, seed=100 + i)
             y = dfl.controlled_possession(m.truth, m.period, hold)
-            X = v2.features(a, m.period, m.pitch, m.fps)
-            data.append(dict(m=m, a=a, y=y, X=X))
+            copies = [dfl.degrade(m, seed=100 + i + 1000 * c) for c in range(args.copies)]
+            Xs = [v2.features(a, m.period, m.pitch, m.fps) for a in copies]
+            # copy 0 is the held-out test version; all copies are used when the match trains others
+            data.append(dict(m=m, a=copies[0], y=y, X=Xs[0], Xs=Xs))
     console.print(f"{len(data)} matches · {sum(len(d['y']) for d in data):,} frames · {data[0]['X'].shape[1]} features")
 
     section("Leave-one-match-out", "Train on the others, predict the held-out match. Costs are tuned on all folds together.")
@@ -64,7 +72,8 @@ def main():
     with console.status("training folds ..."):
         for k, d in enumerate(data):
             rest = [e for j, e in enumerate(data) if j != k]
-            models = v2.fit(pd.concat([e["X"] for e in rest], ignore_index=True), np.concatenate([e["y"] for e in rest]))
+            models = v2.fit(pd.concat([x for e in rest for x in e["Xs"]], ignore_index=True),
+                            np.concatenate([e["y"] for e in rest for _ in e["Xs"]]))
             folds.append(v2.proba(models, d["X"]))
 
     best, grid = None, {}
@@ -101,11 +110,14 @@ def main():
             f"(~{mg:.0f} possessions each). "
             f"Best decoder: switch-ha {best[1]}, switch-d {best[2]}.")
 
-    cfg = dict(min_hold=hold, switch_ha=best[1], switch_d=best[2], cv_spell_f1=m2, cv_spell_f1_v1=m1)
-    (dfl.cache_dir() / "v2_config.json").write_text(json.dumps(cfg, indent=2))
-    (ch.THIS_REPO / "outputs").mkdir(exist_ok=True)
-    (ch.THIS_REPO / "outputs" / "v2_config.json").write_text(json.dumps(cfg, indent=2))
-    console.print("[dim]saved decoder settings → outputs/v2_config.json (used by predict_v2.py)[/dim]")
+    if args.save:
+        cfg = {**cfg0, **dict(min_hold=hold, switch_ha=best[1], switch_d=best[2], copies=args.copies,
+                              cv_spell_f1=m2, cv_spell_f1_v1=m1)}
+        cfg_path.parent.mkdir(exist_ok=True)
+        cfg_path.write_text(json.dumps(cfg, indent=2))
+        console.print("[dim]saved → outputs/v2_config.json (used by predict_v2.py)[/dim]")
+    else:
+        console.print("[dim]not saved (add --save to make predict_v2.py use these settings)[/dim]")
 
 
 if __name__ == "__main__":
