@@ -184,6 +184,7 @@ class Decoder:
     switch_ha: float = 30.0   # log-cost of a direct H <-> A change
     switch_d: float = 40.0    # log-cost of entering or leaving D
     temp: float = 1.0         # divides log-probabilities (frames are correlated, so <1 sharpens less)
+    shift: int = 0            # frames to move every predicted change EARLIER (corrects a systematic lag)
 
 
 def viterbi(logp: np.ndarray, dec: Decoder) -> np.ndarray:
@@ -204,13 +205,41 @@ def viterbi(logp: np.ndarray, dec: Decoder) -> np.ndarray:
     return path
 
 
+def shift_earlier(labels: np.ndarray, period: np.ndarray, k: int) -> np.ndarray:
+    """Move every change of label k frames earlier, within each period."""
+    if k <= 0:
+        return labels
+    out = labels.copy()
+    for q in np.unique(period):
+        s = np.flatnonzero(period == q)
+        seg = labels[s]
+        out[s] = np.concatenate((seg[k:], np.repeat(seg[-1:], min(k, len(seg)))))[: len(seg)]
+    return out
+
+
 def decode(p: np.ndarray, period: np.ndarray, dec: Decoder) -> np.ndarray:
     logp = np.log(np.clip(p, 1e-6, 1)) / dec.temp
     out = np.empty(len(p), np.int8)
     for q in np.unique(period):
         s = np.flatnonzero(period == q)
         out[s] = viterbi(logp[s], dec)
-    return out
+    return shift_earlier(out, period, dec.shift)
+
+
+def change_lags(truth: np.ndarray, pred: np.ndarray, period: np.ndarray, window: int = 50) -> np.ndarray:
+    """For each true change of label, signed lag (frames) to the nearest predicted change of the
+    same kind (same new label) within ±window. Positive = we switch late."""
+    lags = []
+    for q in np.unique(period):
+        s = np.flatnonzero(period == q)
+        t, p = truth[s], pred[s]
+        tc = np.flatnonzero(np.diff(t) != 0) + 1
+        pc = np.flatnonzero(np.diff(p) != 0) + 1
+        for c in tc:
+            cand = pc[(np.abs(pc - c) <= window) & (p[np.minimum(pc, len(p) - 1)] == t[c])]
+            if len(cand):
+                lags.append(cand[np.argmin(np.abs(cand - c))] - c)
+    return np.array(lags)
 
 
 # ----------------------------------------------------------------------------- scoring

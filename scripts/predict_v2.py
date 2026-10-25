@@ -34,14 +34,16 @@ def main():
     ap.add_argument("--switch-ha", type=float)
     ap.add_argument("--switch-d", type=float)
     ap.add_argument("--min-hold", type=float, help="seconds")
+    ap.add_argument("--shift", type=float, help="seconds to move predicted changes earlier")
     args = ap.parse_args()
 
     cfg_path = ch.THIS_REPO / "outputs" / "v2_config.json"
     cfg = json.loads(cfg_path.read_text()) if cfg_path.exists() else dict(min_hold=100, switch_ha=80, switch_d=80)
     hold = int(args.min_hold * 25) if args.min_hold is not None else cfg["min_hold"]
-    dec = v2.Decoder(switch_ha=args.switch_ha or cfg["switch_ha"], switch_d=args.switch_d or cfg["switch_d"])
+    shift = int(round(args.shift * 25)) if args.shift is not None else int(cfg.get("shift", 0))
+    dec = v2.Decoder(switch_ha=args.switch_ha or cfg["switch_ha"], switch_d=args.switch_d or cfg["switch_d"], shift=shift)
     title(f"v2 submission · {args.name}",
-          f"min_hold {hold / 25:.1f} s · switch-ha {dec.switch_ha:g} · switch-d {dec.switch_d:g} · aggregates only")
+          f"min_hold {hold / 25:.1f} s · switch-ha {dec.switch_ha:g} · switch-d {dec.switch_d:g} · shift {dec.shift / 25:.2f} s")
 
     with console.status("training on all DFL matches ..."):
         Xs, ys = [], []

@@ -95,4 +95,7 @@ DFL/Sportec open data, 7 Bundesliga matches: per-frame owning team and alive/dea
 
 **A subtlety about `min_hold`:** changing it changes the *labels* the validation scores against, so cross-validation scores at different holds are not comparable. The hold has to be chosen from the definition (matching the challenge's possession rate), not from the CV score.
 
+### Round 2 (built, 25 Oct): hold × decoder × lag — `scripts/sweep_hold.py`
+For holds of 2, 3 and 4 s: leave-one-match-out on DFL tunes the switch costs **and a lag shift** (every predicted change moved earlier by 0–1 s, kept only if it raises spellF1); the median lag of our changes is measured before and after; then the model is retrained on all DFL and the challenge match is predicted. The hold is picked by the challenge prediction's possession rate (≈ 4.2 per live minute), never by CV score.
+
 **Earlier plan (kept):** (dead/alive, team) → decoder tuned by **official spellF1 on held-out DFL matches**, the first honest validation set (~400 possessions per match).
