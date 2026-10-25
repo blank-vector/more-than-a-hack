@@ -2,7 +2,7 @@
 
 Our pipeline for [Phase 1 of the challenge](https://github.com/metrica-sports/more-than-a-hack-2027): label every frame of FC Barcelona vs Athletic Club as `H` / `A` / `D` / `X`, ranked on **spellF1**.
 
-**Write-up:** [docs/RESULTS.md](docs/RESULTS.md) (current state) · [docs/JOURNAL.md](docs/JOURNAL.md) (how we got here)
+**Write-up:** [docs/RESULTS.md](docs/RESULTS.md) (current state) · [docs/JOURNAL.md](docs/JOURNAL.md) (how we got here) · [docs/PIPELINE.md](docs/PIPELINE.md) (data formats and design)
 
 ## Layout on disk
 
