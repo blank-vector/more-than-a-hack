@@ -79,4 +79,10 @@ DFL/Sportec open data, 7 Bundesliga matches: per-frame owning team and alive/dea
 - Translate labels: a team run shorter than `min_hold` inside live play goes back to the previous team; `min_hold` is chosen so DFL reaches ~4.2 possessions per live minute.
 - Degrade: missing-ball gaps tied to stoppages and calibrated per match to P(missing | dead) ≈ 64% and P(missing | live) ≈ 22%; track fragments of ~35 s; jitter. Player speed is recomputed from positions for both datasets, so the feature means the same thing on both sides.
 
-**Next:** shared features → LightGBM (dead/alive, team) → decoder tuned by **official spellF1 on held-out DFL matches**, the first honest validation set (~400 possessions per match).
+**Stage 1 results (real DFL, 7 matches):** touch-level 6.5–11.0 possessions per live minute; a 4.0 s hold brings the pool to 3.9 (3.0 s gives 4.5). Degraded copies: ball visible 52–63%, missing 59–72% in stoppages and 21–24% in live play, ~10 players tracked per team — close to the challenge's 59% / ~64% / ~22% / ~10.5. Gaps run slightly long in three matches (14–16 s vs 10.7 s).
+
+**Caveat noted:** a 4 s hold erases short real possessions from the training labels, and the challenge truth does contain some (0.8 s, 1.3 s). To revisit once validation can measure it.
+
+**Stage 2–3 (built):** 62 features computed identically on both datasets (speeds recomputed from positions; attacking direction inferred per period from where each team stands), two LightGBM models (dead vs alive; home vs away on live frames), and a Viterbi decoder whose two switch costs are chosen by the official spellF1 on held-out DFL matches.
+
+**Next:** run the leave-one-match-out validation on real DFL, then (dead/alive, team) → decoder tuned by **official spellF1 on held-out DFL matches**, the first honest validation set (~400 possessions per match).

@@ -1,7 +1,7 @@
 # Results — current state
 
 *More Than a Hack 2027, Phase 1: frame-level ball possession on FC Barcelona vs Athletic Club.*
-*Last updated: 24 Oct 2026. The story of how we got here is in [JOURNAL.md](JOURNAL.md).*
+*Last updated: 25 Oct 2026. The story of how we got here is in [JOURNAL.md](JOURNAL.md).*
 
 ## The task in one paragraph
 
@@ -64,11 +64,11 @@ Verdicts for v1.1: 8 match · 4 partial · 9 missed out of 21 segments.
 
 | Step | What | Status |
 |---|---|---|
-| 1 | Load DFL, translate touch-level → controlled possession (`min_hold` chosen to hit ~4.2/live-min), degrade to challenge-like tracking (calibrated ball gaps tied to stoppages, fragmented tracks) | **Built** · run `scripts/prepare_dfl.py` |
-| 2 | Shared features for DFL and challenge | Next |
-| 3 | LightGBM: dead vs alive, and which team | — |
-| 4 | Decoder + **honest validation**: official spellF1 on held-out DFL matches | — |
-| 5 | Predict the challenge match → `v2.csv` | — |
+| 1 | Load DFL, translate touch-level → controlled possession, degrade to challenge-like tracking | **Done** · all 7 matches · `min_hold` 4.0 s → 3.9 poss/live-min · degraded ball visible 52–63% (challenge 59%) |
+| 2 | 62 shared features (ball, nearest players, team shape with inferred attacking direction, time since/until events, rolling windows) | **Built** · `src/possession/v2.py` |
+| 3 | LightGBM: dead vs alive, and home vs away on live frames | **Built** |
+| 4 | Decoder costs tuned by **official spellF1, leave-one-match-out on DFL**; v1 rules scored on the same matches for reference | **Built** · run `scripts/train_v2.py` |
+| 5 | Train on all DFL, predict the challenge → `outputs/submissions/v2.csv` | **Built** · run `scripts/predict_v2.py` |
 
 ## Open questions and risks
 
