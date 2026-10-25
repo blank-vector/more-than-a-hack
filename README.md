@@ -4,6 +4,23 @@ Our pipeline for [Phase 1 of the challenge](https://github.com/metrica-sports/mo
 
 **Write-up:** [docs/RESULTS.md](docs/RESULTS.md) (current state) · [docs/JOURNAL.md](docs/JOURNAL.md) (how we got here) · [docs/PIPELINE.md](docs/PIPELINE.md) (data formats and design)
 
+## Reproduce the submission
+
+The frozen candidate is **v2d**: settings in [`configs/v2d.json`](configs/v2d.json), trained models in `models/v2d/` (trained on public DFL data only).
+
+```bash
+# official repo next to this one, match data in $MTAH_DATA_DIR (see "Layout on disk")
+pip install -r requirements.txt
+python scripts/predict_v2.py --config configs/v2d.json --models models/v2d --name v2d
+# → outputs/submissions/v2d.csv, plus its sha256 fingerprint
+```
+
+To retrain the models from the DFL open data instead (downloads ~1.5 GB the first time):
+
+```bash
+python scripts/predict_v2.py --config configs/v2d.json --save-models models/v2d --name v2d
+```
+
 ## Layout on disk
 
 ```

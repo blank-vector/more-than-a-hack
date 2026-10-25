@@ -1,0 +1,10 @@
+{
+  "name": "v2d",
+  "min_hold": 50,
+  "switch_ha": 20,
+  "switch_d": 40,
+  "shift": 0,
+  "copies": 1,
+  "tags": true,
+  "notes": "First frozen candidate (25 Oct 2026): 2.0 s hold, 1 degraded copy per DFL match, Smart Tagging restart prior. Full match: 3.9 poss/live-min, 106 stoppages, 43% dead. Public 5 min: spellF1 0.600."
+}

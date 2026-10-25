@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from possession import atd as atd_mod  # noqa: E402
 from possession import challenge as ch  # noqa: E402
 from possession import dfl, v1, v2  # noqa: E402
-from possession.report import console, insight, save, section, table, title  # noqa: E402
+from possession.report import console, insight, save, section, table, title, status  # noqa: E402
 
 pm = ch.pm
 GRID_HA, GRID_D, SHIFTS = (20, 40, 80), (20, 40, 80), (0, 6, 12, 18, 25)
@@ -61,7 +61,7 @@ def main():
     args = ap.parse_args()
     title("v2 · round 2 · label hold × decoder × lag", "public DFL data + challenge aggregates · safe to share")
 
-    with console.status("loading and degrading DFL ..."):
+    with status("loading and degrading DFL ..."):
         base = []
         for i, mid in enumerate(dfl.MATCHES):
             try:
@@ -71,7 +71,7 @@ def main():
                 continue
             a = dfl.degrade(m, seed=100 + i)
             base.append(dict(m=m, X=v2.features(a, m.period, m.pitch, m.fps)))
-    with console.status("challenge features ..."):
+    with status("challenge features ..."):
         ca = atd_mod.load()
         halves = ch.half_index(ca.n_frames)
         cX = v2.features(ca, halves, ch.PITCH, ch.FPS)
@@ -85,7 +85,7 @@ def main():
         data = [dict(**b, y=dfl.controlled_possession(b["m"].truth, b["m"].period, hold)) for b in base]
         rate_dfl = np.mean([dfl.possession_rate(d["y"], d["m"].period, d["m"].fps)[0] for d in data])
 
-        with console.status("cross-validation: training 1 model per held-out match ..."):
+        with status("cross-validation: training 1 model per held-out match ..."):
             probs = []
             for k, d in enumerate(data):
                 rest = [e for j, e in enumerate(data) if j != k]
@@ -93,7 +93,7 @@ def main():
                 probs.append(v2.proba(mdl, d["X"]))
 
         best = None
-        with console.status("tuning switch costs and lag shift ..."):
+        with status("tuning switch costs and lag shift ..."):
             for ha, dd in itertools.product(GRID_HA, GRID_D):
                 raw = [v2.decode(p, d["m"].period, v2.Decoder(ha, dd)) for d, p in zip(data, probs)]
                 for k in SHIFTS:
@@ -107,7 +107,7 @@ def main():
         lag1 = np.concatenate([v2.change_lags(d["y"], v2.shift_earlier(r, d["m"].period, k), d["m"].period)
                                for d, r in zip(data, raw)])
 
-        with console.status("training on all DFL and predicting the challenge ..."):
+        with status("training on all DFL and predicting the challenge ..."):
             mdl = v2.fit(pd.concat([d["X"] for d in data], ignore_index=True), np.concatenate([d["y"] for d in data]))
             p = v2.proba(mdl, cX)
             p[force_d] = [1.0, 0.0, 0.0]

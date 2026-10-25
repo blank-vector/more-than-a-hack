@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from possession import atd as atd_mod  # noqa: E402
 from possession import challenge as ch  # noqa: E402
 from possession import v1  # noqa: E402
-from possession.report import bar, console, grade, insight, save, section, table, title  # noqa: E402
+from possession.report import bar, console, grade, insight, save, section, table, title, status  # noqa: E402
 
 TARGET_RATE = 4.2  # possessions per live minute in the public window
 
@@ -60,7 +60,7 @@ def sweep(a, tags, p):
     biases, sticks = (-3.0, -2.0, -1.0, 0.0, 1.0), (1, 2, 4, 8)
     t = table("--d-bias  \\  --stickiness", *[str(s_) for s_ in sticks])
     best = None
-    with console.status("decoding 20 combinations (~1 min) ..."):
+    with status("decoding 20 combinations (~1 min) ..."):
         for b in biases:
             ev = v1.build_evidence(a, tags, dataclasses.replace(p, d_bias=b))
             ll = v1.emissions(ev)
@@ -93,10 +93,10 @@ def main():
     p = v1.Params(**{k: val for k, val in vars(args).items() if k not in ("name", "sweep") and val is not None})
 
     title(f"Version 1 submission · {args.name}", "rule-based evidence + Viterbi · aggregates only")
-    with console.status("loading tracking and tags ..."):
+    with status("loading tracking and tags ..."):
         a = atd_mod.load()
         tags = v1.load_tags()
-    with console.status("building evidence and decoding ..."):
+    with status("building evidence and decoding ..."):
         labels, ev = v1.predict(a, tags, p)
 
     if args.sweep:

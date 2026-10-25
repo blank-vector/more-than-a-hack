@@ -153,7 +153,7 @@ def features(a: ATD, period: np.ndarray, pitch: tuple[float, float], fps: float 
 # ----------------------------------------------------------------------------- models
 PARAMS = dict(objective="binary", learning_rate=0.05, num_leaves=63, min_data_in_leaf=200,
               feature_fraction=0.8, bagging_fraction=0.7, bagging_freq=1, lambda_l2=1.0,
-              verbose=-1, seed=0, num_threads=0)
+              verbose=-1, seed=0, num_threads=0, deterministic=True, force_row_wise=True)
 
 
 @dataclass
@@ -170,6 +170,20 @@ def fit(X: pd.DataFrame, y: np.ndarray, rounds: int = 300, step: int = 5) -> Mod
     alive = ys != D
     team = lgb.train(PARAMS, lgb.Dataset(Xs[alive], (ys[alive] == H).astype(int)), rounds)
     return Models(dead, team)
+
+
+def save_models(m: Models, folder) -> None:
+    from pathlib import Path
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    m.dead.save_model(str(folder / "dead.txt"))
+    m.team.save_model(str(folder / "team.txt"))
+
+
+def load_models(folder) -> Models:
+    from pathlib import Path
+    folder = Path(folder)
+    return Models(lgb.Booster(model_file=str(folder / "dead.txt")), lgb.Booster(model_file=str(folder / "team.txt")))
 
 
 def proba(m: Models, X: pd.DataFrame) -> np.ndarray:

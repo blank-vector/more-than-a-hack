@@ -20,7 +20,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from possession import atd as atd_mod  # noqa: E402
 from possession import challenge as ch  # noqa: E402
-from possession.report import bar, console, grade, insight, save, section, table, title  # noqa: E402
+from possession.report import bar, console, grade, insight, save, section, table, title, status  # noqa: E402
 
 
 def runs(mask: np.ndarray) -> np.ndarray:
@@ -38,7 +38,7 @@ def pct_row(name: str, a: np.ndarray, qs=(10, 25, 50, 75, 90, 99), fmt="{:.2f}")
 
 def main():
     title("Challenge tracking profile", "aggregate stats only · safe to share")
-    with console.status("loading tracking (first run parses the file, ~1-2 min) ..."):
+    with status("loading tracking (first run parses the file, ~1-2 min) ..."):
         a = atd_mod.load()
     T = a.n_frames
     graded = ch.graded_mask(T)

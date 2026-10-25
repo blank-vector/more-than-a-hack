@@ -14,7 +14,7 @@ from rich.text import Text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from possession import dfl  # noqa: E402
-from possession.report import bar, console, grade, insight, save, section, table, title  # noqa: E402
+from possession.report import bar, console, grade, insight, save, section, table, title, status  # noqa: E402
 
 TARGET = dict(ball_visible=0.593, gap_median_s=10.7, tracked_per_team=10.5)
 
@@ -25,7 +25,7 @@ def main():
     section("1 · Load")
     for mid in dfl.MATCHES:
         try:
-            with console.status(f"loading {mid} ..."):
+            with status(f"loading {mid} ..."):
                 m = dfl.load_match(mid)
             matches.append(m)
             r, mean, n = dfl.possession_rate(m.truth, m.period, m.fps)

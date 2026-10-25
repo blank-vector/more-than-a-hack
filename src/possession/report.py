@@ -17,6 +17,12 @@ from rich.table import Table
 from rich.text import Text
 
 console = Console(record=True, highlight=False)
+_progress = Console(stderr=True)  # spinners go here, so they never end up in the saved .txt
+
+
+def status(text: str):
+    """A spinner that is shown but not recorded."""
+    return _progress.status(text)
 ROOT = Path(__file__).resolve().parents[2]
 
 

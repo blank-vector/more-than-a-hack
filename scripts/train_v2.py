@@ -23,7 +23,7 @@ warnings.filterwarnings("ignore")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from possession import challenge as ch  # noqa: E402
 from possession import dfl, v1, v2  # noqa: E402
-from possession.report import console, grade, insight, save, section, table, title  # noqa: E402
+from possession.report import console, grade, insight, save, section, table, title, status  # noqa: E402
 
 pm = ch.pm
 GRID_HA = (10, 20, 40, 80, 160, 320)
@@ -52,7 +52,7 @@ def main():
     console.print(f"label translation: min_hold = {hold / 25:.1f} s · training copies per match: {args.copies}")
 
     data = []
-    with console.status("loading, degrading and building features ..."):
+    with status("loading, degrading and building features ..."):
         ids = dfl.MATCHES[: args.matches or None]
         for i, mid in enumerate(ids):
             try:
@@ -69,7 +69,7 @@ def main():
 
     section("Leave-one-match-out", "Train on the others, predict the held-out match. Costs are tuned on all folds together.")
     folds = []
-    with console.status("training folds ..."):
+    with status("training folds ..."):
         for k, d in enumerate(data):
             rest = [e for j, e in enumerate(data) if j != k]
             models = v2.fit(pd.concat([x for e in rest for x in e["Xs"]], ignore_index=True),
@@ -77,7 +77,7 @@ def main():
             folds.append(v2.proba(models, d["X"]))
 
     best, grid = None, {}
-    with console.status(f"decoding {len(GRID_HA) * len(GRID_D)} cost settings × {len(data)} matches ..."):
+    with status(f"decoding {len(GRID_HA) * len(GRID_D)} cost settings × {len(data)} matches ..."):
         for ha, dd in itertools.product(GRID_HA, GRID_D):
             dec = v2.Decoder(switch_ha=ha, switch_d=dd)
             s = [score(d["y"], v2.decode(p, d["m"].period, dec), d["m"].period)[0] for d, p in zip(data, folds)]

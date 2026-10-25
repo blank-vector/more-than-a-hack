@@ -19,7 +19,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from possession import atd as atd_mod  # noqa: E402
 from possession import challenge as ch  # noqa: E402
-from possession.report import bar, console, insight, save, section, table, title  # noqa: E402
+from possession.report import bar, console, insight, save, section, table, title, status  # noqa: E402
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -48,7 +48,7 @@ def zone(x: float, y: float) -> str:
 
 def main():
     title("What happens while the ball is missing?", "aggregate stats only · safe to share")
-    with console.status("loading tracking ..."):
+    with status("loading tracking ..."):
         a = atd_mod.load()
     T, fps = a.n_frames, ch.FPS
     halves = ch.half_index(T)
