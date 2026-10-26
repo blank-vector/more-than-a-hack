@@ -46,6 +46,8 @@ python scripts/prepare_dfl.py                # v2 stage 1: DFL training data (pu
 python scripts/train_v2.py                   # v2 stage 2: leave-one-match-out validation on DFL, tunes the decoder
 python scripts/predict_v2.py                 # v2 stage 3: train on all DFL, write outputs/submissions/v2.csv
 python scripts/sweep_hold.py                 # v2 round 2: choose label hold, decoder costs and lag shift
+python scripts/train_v3.py                   # v3: change-aware decoder, CV on DFL vs v2d
+python scripts/predict_v3.py                 # v3 submission (configs/v3.json)
 ```
 
 `src/possession/challenge.py` imports the official `games.py` and `possession_metrics.py` from the official repo, so we always score exactly like the organisers. `src/possession/atd.py` parses the ATD once into a cache in `$MTAH_DATA_DIR/cache`.

@@ -113,4 +113,10 @@ For holds of 2, 3 and 4 s: leave-one-match-out on DFL tunes the switch costs **a
 ### Freeze (26 Oct): v2d
 1 copy + Smart Tagging prior fits every full-match target best: 3.9 possessions per live minute, 106 stoppages, 43% dead, 88% of set pieces preceded by dead ball; public spellF1 0.600. Frozen: settings in `configs/v2d.json`, trained models committed in `models/v2d/` (so reproduction does not depend on retraining on a different machine), deterministic LightGBM. Two runs from the committed models gave byte-identical files (sha256 `84307b10…`). Technical document drafted in `docs/TECHNICAL.md`.
 
+### v3 (built, 26 Oct): change-aware decoder
+**Problem:** a single constant switch cost must be high to stop flicker, and so also blocks real 1–3 s possessions (v2 finds ~85% of DFL possessions).
+**Idea:** a third LightGBM model predicts *where* the label changes (within ±0.24 s of any change, trained on DFL), and the decoder's switch costs become `max(0, base − k · logit(p_change))`: cheap where a change is likely, expensive elsewhere. k = 0 recovers v2-style constant costs.
+**New short-range features (19):** ball velocity along the attacking direction, sideways speed, turning; how fast each team's nearest player closes on the ball; tight (≤ 1 m) control over 0.2 and 0.5 s; past-vs-future contrasts of the distance difference and of player speed. 81 features in total.
+**Test:** `train_v3.py`, same hold (2 s) and noise seeds as v2d, so its scores compare directly with v2d's 0.657.
+
 **Earlier plan (kept):** (dead/alive, team) → decoder tuned by **official spellF1 on held-out DFL matches**, the first honest validation set (~400 possessions per match).
