@@ -1,0 +1,11 @@
+{
+  "name": "v3c",
+  "min_hold": 50,
+  "switch_ha": 20,
+  "switch_d": 40,
+  "k": 2,
+  "copies": 1,
+  "tags": true,
+  "dead_model": "models/v2d/dead.txt",
+  "notes": "Hybrid candidate: P(dead) from the v2d dead model (62 v2 features), P(home | alive) and P(change) from the v3 models; decoder as v3b. Reproduce: python scripts/predict_v3.py --config configs/v3c.json --models models/v3 --name v3c"
+}

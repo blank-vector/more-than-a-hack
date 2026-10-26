@@ -39,9 +39,11 @@ def main():
     ap.add_argument("--min-hold", type=float, default=2.0)
     ap.add_argument("--matches", type=int, default=0)
     ap.add_argument("--save", action="store_true")
+    ap.add_argument("--dead-from-v2", action="store_true",
+                    help="hybrid: dead-ball model trained on v2's 62 features, team/change from v3")
     args = ap.parse_args()
     hold = int(round(args.min_hold * 25))
-    title("v3 · change-aware decoder · leave-one-match-out on DFL",
+    title("v3 · change-aware decoder · leave-one-match-out on DFL" + (" · HYBRID dead model (v2 features)" if args.dead_from_v2 else ""),
           f"hold {args.min_hold:g} s · same noise seeds as v2d · public data · safe to share")
 
     data = []
@@ -63,7 +65,13 @@ def main():
             rest = [e for j, e in enumerate(data) if j != k]
             mdl = v3.fit(pd.concat([e["X"] for e in rest], ignore_index=True),
                          np.concatenate([e["y"] for e in rest]), np.concatenate([e["m"].period for e in rest]))
-            folds.append(v3.proba(mdl, d["X"]))
+            if args.dead_from_v2:
+                v2_cols = [c for c in rest[0]["X"].columns][:62]
+                dead = v3.fit_dead_v2(pd.concat([e["X"] for e in rest], ignore_index=True),
+                                      np.concatenate([e["y"] for e in rest]), v2_cols)
+                folds.append(v3.proba_hybrid(mdl, dead, d["X"]))
+            else:
+                folds.append(v3.proba(mdl, d["X"]))
 
     res = {}
     with status(f"decoding {len(GRID_HA) * len(GRID_D) * len(GRID_K)} settings × {len(data)} matches ..."):

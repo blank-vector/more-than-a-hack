@@ -105,6 +105,21 @@ def proba(m: Models, X: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
     return p, m.change.predict(X)
 
 
+def fit_dead_v2(X: pd.DataFrame, y: np.ndarray, v2_columns: list[str], rounds: int = 300, step: int = 5) -> lgb.Booster:
+    """Dead-vs-alive model on v2's 62 features only (v3's extra short-range features hurt it on
+    the real match)."""
+    idx = np.arange(0, len(y), step)
+    return lgb.train(v2.PARAMS, lgb.Dataset(X.iloc[idx][v2_columns], (y[idx] == D).astype(int)), rounds)
+
+
+def proba_hybrid(m: Models, dead: lgb.Booster, X: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    """P(D) from a v2-feature dead model, P(home | alive) and P(change) from the v3 models."""
+    pd_ = dead.predict(X[dead.feature_name()])
+    ph = m.team.predict(X)
+    p = np.stack([pd_, (1 - pd_) * ph, (1 - pd_) * (1 - ph)], axis=1)
+    return p, m.change.predict(X)
+
+
 def save_models(m: Models, folder) -> None:
     from pathlib import Path
     folder = Path(folder)

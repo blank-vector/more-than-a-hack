@@ -40,6 +40,7 @@ def main():
     ap.add_argument("--config", type=Path, help="settings file (default: outputs/v2_config.json)")
     ap.add_argument("--models", type=Path, help="load trained models from this folder instead of training")
     ap.add_argument("--save-models", type=Path, help="after training, store the models in this folder")
+    ap.add_argument("--dead-model", type=Path, help="hybrid: take P(dead) from this v2 dead.txt (e.g. models/v2d/dead.txt)")
     args = ap.parse_args()
 
     cfg_path = args.config or ch.THIS_REPO / "configs" / "v3.json"
@@ -79,7 +80,13 @@ def main():
         a = atd_mod.load()
         halves = ch.half_index(a.n_frames)
         X = v3.features(a, halves, ch.PITCH, ch.FPS)
-        p, pc = v3.proba(models, X)
+        dead_path = args.dead_model or (ch.THIS_REPO / cfg["dead_model"] if cfg.get("dead_model") else None)
+        if dead_path:
+            import lightgbm as lgb
+            p, pc = v3.proba_hybrid(models, lgb.Booster(model_file=str(dead_path)), X)
+            console.print(f"[dim]hybrid: P(dead) from {dead_path}[/dim]")
+        else:
+            p, pc = v3.proba(models, X)
         # before each half's kick-off (from Smart Tagging) the ball is always dead
         tags = v1.load_tags()
         ev = v1.build_evidence(a, tags, v1.Params())

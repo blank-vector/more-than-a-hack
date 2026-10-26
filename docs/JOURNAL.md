@@ -124,4 +124,7 @@ For holds of 2, 3 and 4 s: leave-one-match-out on DFL tunes the switch costs **a
 ### v3 on the challenge, and v3b (26 Oct)
 v3 (stoppage cost 80, as DFL chose) improved possession boundaries on the public window (spellF1 0.614, lag +0.2 s, segments 8 and 9 at 0.77 and 0.97) but cut stoppages to 92 and the public dead-ball F1 to 0.463. Same pattern as the 3-copy test: our simulated noise makes stoppages look easier than they are, so DFL pushes the stoppage cost too high. **v3b** keeps the v3 models with v2d's stoppage cost (40): 4.3 possessions per live minute, 113 stoppages, 41% dead; identical public window. Frozen as the new candidate, v2d kept as fallback. Open caveat: v3's models detect public-window stoppages less well than v2d's (dead-ball F1 0.46 vs 0.56, on 4 stoppages).
 
+### Hybrid dead model (built, 26 Oct): v3c
+v3's extra short-range features improved the team side but made public-window stoppage detection worse (dead-ball F1 0.46 vs v2d's 0.56). **v3c** takes P(dead) from a model on v2's 62 features and P(home | alive), P(change) from v3. Tested two ways: on DFL (`train_v3.py --dead-from-v2`, the dead model retrained per fold, same folds as before) and on the challenge with v2d's committed dead model (`configs/v3c.json`).
+
 **Earlier plan (kept):** (dead/alive, team) → decoder tuned by **official spellF1 on held-out DFL matches**, the first honest validation set (~400 possessions per match).
