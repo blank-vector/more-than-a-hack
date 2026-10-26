@@ -47,7 +47,8 @@ All public-window numbers are **sanity checks only**: 17 possessions, ~0.06 spel
 | v1.1 | `predict_v1.py --d-bias -2.0 --stickiness 2 --d-cost-ratio 4` | 3.6 · 44% · 107 | 0.400 · 0.700 · 13 |
 | v2 | `train_v2.py` then `predict_v2.py` (min_hold 4.0 s, switch-ha 40, switch-d 40) | 3.2 · 41% · 106 | 0.571 · 0.759 · 11 |
 | v2c_notags | 3 training copies, no tag prior | 3.3 · 38% · 93 | 0.586 · 0.728 · 11 |
-| **v3b (frozen candidate)** | `predict_v3.py --config configs/v3b.json --models models/v3` — v3 models, stoppage cost 40 · sha256 `0ebe2d49…` | 4.3 · 41% · 113 | **0.614** · 0.728 · 11 (dead-ball F1 0.463) |
+| **v3c (frozen candidate)** | `predict_v3.py --config configs/v3c.json --models models/v3` — v3 team/change models + v2d dead model · sha256 `4b84d82d…` | **4.2 · 43% · 108** | **0.614 · 0.766 · 11** (dead-ball F1 **0.561**) |
+| v3b | `predict_v3.py --config configs/v3b.json --models models/v3` — v3 models, stoppage cost 40 · sha256 `0ebe2d49…` | 4.3 · 41% · 113 | **0.614** · 0.728 · 11 (dead-ball F1 0.463) |
 | v3 | v3 models, stoppage cost 80 (DFL's choice) | 4.0 · 40% · 92 | 0.614 · 0.728 · 11 |
 | v2d (fallback) | `predict_v2.py --config configs/v2d.json --models models/v2d` — 1 copy + tag prior · sha256 `84307b10…` | 3.9 · 43% · 106 | **0.600 · 0.762 · 11** |
 | v2c | 3 training copies + Smart Tagging restart prior (`predict_v2.py --name v2c`) | 3.4 · 40% · 96 | **0.600 · 0.744 · 11** |
@@ -73,6 +74,8 @@ All public-window numbers are **sanity checks only**: 17 possessions, ~0.06 spel
 | J03WQQ | 0.701 | 0.719 |
 | J03WR9 | 0.665 | 0.694 |
 | **Mean** | 0.657 | **0.688** |
+
+**Hybrid (v3c models, dead model on v2 features, same folds): 0.679** — within noise of v3 (0.688), still +0.022 over v2d.
 
 New short-range features: +0.027. Change detector (k = 2): +0.004 more, within noise. Possessions found: 86% of truth (v2d ~85%).
 

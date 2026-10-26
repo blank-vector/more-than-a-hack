@@ -1,13 +1,13 @@
 # Frame-level ball possession from automatic tracking
 
 *More Than a Hack 2027, Phase 1 · FC Barcelona vs Athletic Club · technical document*
-*Submission: v3b · sha256 `0ebe2d49…` (full hash: see `docs/RESULTS.md`)*
+*Submission: v3c · sha256 `4b84d82d…` (full hash: see `docs/RESULTS.md`)*
 
 ## 1. Summary
 
 We treat the task as **possession segmentation** rather than frame classification. Gradient-boosted models, trained on the public DFL/Sportec open dataset after it is degraded to resemble the challenge's automatic tracking, give per-frame probabilities of dead ball, home and away possession, plus the probability that possession changes at that moment. A Viterbi decoder turns them into whole possessions; its switch costs are lowered where a change is likely and were tuned by the official spellF1 on held-out DFL matches. Smart Tagging set pieces nudge the decoder at restarts.
 
-On 7 held-out DFL matches (~2,000 scored possessions) the models reach a mean spellF1 of 0.688, against 0.373 for our best hand-tuned rule system on the same matches. On the public 5-minute window the submission scores spellF1 0.614 / macroF1 0.728, against 0.326 / 0.621 for the published baseline.
+On 7 held-out DFL matches (~2,000 scored possessions) the models reach a mean spellF1 of 0.679, against 0.373 for our best hand-tuned rule system on the same matches. On the public 5-minute window the submission scores spellF1 0.614 / macroF1 0.766, against 0.326 / 0.621 for the published baseline.
 
 ## 2. What the data told us
 
@@ -50,7 +50,7 @@ DFL tracking is clean and labelled, but differs from the challenge in two ways, 
 - **Short-range (added in v3):** ball velocity along the attacking direction, sideways speed and turning; how fast each team's nearest player closes on the ball; tight (≤ 1 m) control over 0.2 and 0.5 s; past-vs-future contrasts (0.5, 1, 2 s) of the distance difference and of player speed. These alone raised DFL validation from 0.657 to 0.684.
 
 ### 4.3 Models and decoder
-Three LightGBM classifiers (deterministic): dead vs alive on all frames; home vs away on live frames; and a **change detector**, P(the label changes within ±0.24 s). The first two combine into P(D), P(H), P(A).
+Three LightGBM classifiers (deterministic): dead vs alive; home vs away on live frames; and a **change detector**, P(the label changes within ±0.24 s). The team and change models use all 81 features. The **dead-ball model uses only the first 62**: with the short-range features it fitted our simulated DFL noise slightly better (+0.009 on DFL) but detected real stoppages worse (public dead-ball F1 0.46 vs 0.56, 92 vs 108 full-match stoppages). They combine into P(D), P(H), P(A).
 
 A **Viterbi decoder** picks the single most likely label sequence per half, paying a cost for each H↔A change and for entering or leaving D. Without it, per-frame decisions flicker; the official raw baseline has 131 possessions in the public window against 17 true. Costs vary per frame: `cost_t = max(0, base − k · logit(p_change_t))`, so switching is cheaper where a change is likely. Base costs 20 (H↔A) and 40 (dead ball) log units, k = 2.
 
@@ -74,17 +74,17 @@ Before decoding: +2 log-odds for dead ball from 6 s before each set-piece window
 
 | Evaluation | Measure | Result |
 |---|---|---|
-| Leave-one-match-out, 7 degraded DFL matches | mean spellF1 (official code) | **0.688**, better than v2 (0.657) on all 7 matches; v1 rules 0.373 |
-| Challenge, full match (no ground truth) | possessions per live minute / stoppages / dead share | 4.3 / 113 / 41% (targets ≈ 4.2 / ≈ 105 / ≈ 45%) |
-| Challenge, public 5 minutes | spellF1 / macroF1 / dead-ball F1 | 0.614 / 0.728 / 0.463 (baseline_smooth50: 0.326 / 0.621 / 0.323) |
+| Leave-one-match-out, 7 degraded DFL matches | mean spellF1 (official code) | **0.679** (all-v3 models 0.688, v2 0.657, v1 rules 0.373) |
+| Challenge, full match (no ground truth) | possessions per live minute / stoppages / dead share | 4.2 / 108 / 43% (targets ≈ 4.2 / ≈ 105 / ≈ 45%) |
+| Challenge, public 5 minutes | spellF1 / macroF1 / dead-ball F1 | 0.614 / 0.766 / 0.561 (baseline_smooth50: 0.326 / 0.621 / 0.323) |
 
 Choices were made on DFL folds or on full-match targets that use no ground truth. The public window was used to check that the pipeline is correct and to look at failure cases.
 
 ## 7. Limitations and next steps
 
 - **Short possessions are missed.** In the public window, possessions under ~4 s (0.8–3.6 s) are usually absorbed by their neighbours, and the model predicts 11 possessions against 17. On DFL it under-counts too (about 85% of the true count).
-- **Stoppages with the ball carried to the spot** can look like possession (three of four public stoppages are missed). The v3 models detect public-window stoppages less well than v2's (dead-ball F1 0.46 vs 0.56), on only four stoppages.
-- **Domain gap.** Simulated noise and translated labels approximate, but are not, the challenge's tracking and definition. Twice DFL validation and the challenge's own structure disagreed: three degraded training copies (better on DFL, under-segmented on the challenge) and the dead-ball cost (80 on DFL, too few stoppages on the challenge). In both cases we followed the challenge's structure.
+- **Stoppages with the ball carried to the spot** can look like possession: two of four public stoppages are missed and a third is only partly found.
+- **Domain gap.** Simulated noise and translated labels approximate, but are not, the challenge's tracking and definition. Three times DFL validation and the challenge's own structure disagreed, each time on dead balls or segmentation: three degraded training copies, the dead-ball cost (80 on DFL), and the short-range features in the dead-ball model. Each time the DFL gain was small (≤ 0.014) and the challenge's structure was clearly better with the simpler choice, so we followed the challenge.
 - **Not explored:** ball detection from the tactical video to fill gaps, sequence models (temporal CNN or RNN) instead of hand-made context features, and a learned goal-to-kick-off rule.
 
 ## 8. Reproduction
@@ -95,8 +95,8 @@ git clone <this repository>
 cd <this repository>
 pip install -r requirements.txt
 export MTAH_DATA_DIR=/path/to/match/data        # the bundle with tactical/
-python scripts/predict_v3.py --config configs/v3b.json --models models/v3 --name v3b
-# → outputs/submissions/v3b.csv, sha256 0ebe2d49…
+python scripts/predict_v3.py --config configs/v3c.json --models models/v3 --name v3c
+# → outputs/submissions/v3c.csv, sha256 4b84d82d…
 ```
 
-The committed models in `models/v3/` were trained on public DFL data only. To retrain them: `python scripts/predict_v3.py --config configs/v3b.json --save-models models/v3` (downloads the DFL matches through kloppy). Validation: `python scripts/train_v3.py`. The previous candidate is reproduced the same way with `predict_v2.py --config configs/v2d.json --models models/v2d`.
+The committed models in `models/v3/` and `models/v2d/dead.txt` were trained on public DFL data only. To retrain them: `python scripts/predict_v2.py --config configs/v2d.json --save-models models/v2d` and `python scripts/predict_v3.py --config configs/v3b.json --save-models models/v3` (both download the DFL matches through kloppy). Validation: `python scripts/train_v3.py --dead-from-v2`. The previous candidate is reproduced the same way with `predict_v2.py --config configs/v2d.json --models models/v2d`.

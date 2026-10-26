@@ -127,4 +127,6 @@ v3 (stoppage cost 80, as DFL chose) improved possession boundaries on the public
 ### Hybrid dead model (built, 26 Oct): v3c
 v3's extra short-range features improved the team side but made public-window stoppage detection worse (dead-ball F1 0.46 vs v2d's 0.56). **v3c** takes P(dead) from a model on v2's 62 features and P(home | alive), P(change) from v3. Tested two ways: on DFL (`train_v3.py --dead-from-v2`, the dead model retrained per fold, same folds as before) and on the challenge with v2d's committed dead model (`configs/v3c.json`).
 
+**Hybrid result (26 Oct):** DFL CV 0.679 (v3: 0.688, −0.009, within noise; v2d 0.657). On the challenge it is the best fit on every check: **4.2** possessions per live minute, **108** stoppages, 43% dead, 88% of set pieces preceded by dead ball; public spellF1 0.614, macroF1 **0.766**, dead-ball F1 **0.561**. The pattern is consistent with the earlier tensions: v3's extra features make the dead-ball model fit our simulated noise slightly better but transfer worse to the real tracking. **v3c adopted** as the frozen candidate; v3b and v2d kept as fallbacks.
+
 **Earlier plan (kept):** (dead/alive, team) → decoder tuned by **official spellF1 on held-out DFL matches**, the first honest validation set (~400 possessions per match).
