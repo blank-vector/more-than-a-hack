@@ -1,0 +1,10 @@
+{
+  "name": "v3b",
+  "min_hold": 50,
+  "switch_ha": 20,
+  "switch_d": 40,
+  "k": 2,
+  "copies": 1,
+  "tags": true,
+  "notes": "Frozen candidate (26 Oct 2026): v3 models (81 features + change detector), stoppage cost 40 as in v2d. Full match: 4.3 poss/live-min, 113 stoppages, 41% dead. DFL CV (v3 models): 0.688. Public 5 min: spellF1 0.614. Reproduce: python scripts/predict_v3.py --config configs/v3b.json --models models/v3 --name v3b"
+}

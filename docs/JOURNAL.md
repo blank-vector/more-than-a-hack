@@ -121,4 +121,7 @@ For holds of 2, 3 and 4 s: leave-one-match-out on DFL tunes the switch costs **a
 
 **Result (26 Oct):** mean CV spellF1 **0.688** vs v2d 0.657 (+0.031), better on **all 7** held-out matches. But the split is telling: the new features alone (k = 0) give 0.684; the change detector adds only 0.004 (best k = 2), within noise. Possession count is unchanged (86% of truth vs ~85%), so the gain comes from **better-placed boundaries**, not from finding more short possessions. Short possessions remain the open problem.
 
+### v3 on the challenge, and v3b (26 Oct)
+v3 (stoppage cost 80, as DFL chose) improved possession boundaries on the public window (spellF1 0.614, lag +0.2 s, segments 8 and 9 at 0.77 and 0.97) but cut stoppages to 92 and the public dead-ball F1 to 0.463. Same pattern as the 3-copy test: our simulated noise makes stoppages look easier than they are, so DFL pushes the stoppage cost too high. **v3b** keeps the v3 models with v2d's stoppage cost (40): 4.3 possessions per live minute, 113 stoppages, 41% dead; identical public window. Frozen as the new candidate, v2d kept as fallback. Open caveat: v3's models detect public-window stoppages less well than v2d's (dead-ball F1 0.46 vs 0.56, on 4 stoppages).
+
 **Earlier plan (kept):** (dead/alive, team) → decoder tuned by **official spellF1 on held-out DFL matches**, the first honest validation set (~400 possessions per match).
