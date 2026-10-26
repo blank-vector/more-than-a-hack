@@ -59,6 +59,21 @@ All public-window numbers are **sanity checks only**: 17 possessions, ~0.06 spel
 | 3 s | 4.6 | 0.699 | 20 / 40 | 0.00 s | 3.5 |
 | 4 s | 4.0 | 0.723 | 40 / 40 | 0.00 s | 3.2 |
 
+### v3 on DFL (same folds as v2d)
+
+| Held-out match | v2d | **v3** |
+|---|---|---|
+| J03WMX | 0.655 | 0.682 |
+| J03WN1 | 0.602 | 0.637 |
+| J03WOH | 0.670 | 0.705 |
+| J03WOY | 0.639 | 0.689 |
+| J03WPY | 0.667 | 0.687 |
+| J03WQQ | 0.701 | 0.719 |
+| J03WR9 | 0.665 | 0.694 |
+| **Mean** | 0.657 | **0.688** |
+
+New short-range features: +0.027. Change detector (k = 2): +0.004 more, within noise. Possessions found: 86% of truth (v2d ~85%).
+
 **Smart Tagging restart prior (same model, with vs without):** set pieces preceded by predicted dead ball 83% → **90%**, stoppages 93 → 96, dead share 38% → 40%, public dead-ball F1 0.482 → 0.527, segment 20 missed → partial. Every check moves the right way: adopted.
 
 **Open question:** 3 copies scores better on DFL (+0.014) but pushes the challenge prediction further below the target rate (3.8 → 3.3–3.4 possessions per live minute, 103 → 93–96 stoppages). Tested next with v2d = 1 copy + tag prior.

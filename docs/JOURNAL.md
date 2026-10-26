@@ -119,4 +119,6 @@ For holds of 2, 3 and 4 s: leave-one-match-out on DFL tunes the switch costs **a
 **New short-range features (19):** ball velocity along the attacking direction, sideways speed, turning; how fast each team's nearest player closes on the ball; tight (≤ 1 m) control over 0.2 and 0.5 s; past-vs-future contrasts of the distance difference and of player speed. 81 features in total.
 **Test:** `train_v3.py`, same hold (2 s) and noise seeds as v2d, so its scores compare directly with v2d's 0.657.
 
+**Result (26 Oct):** mean CV spellF1 **0.688** vs v2d 0.657 (+0.031), better on **all 7** held-out matches. But the split is telling: the new features alone (k = 0) give 0.684; the change detector adds only 0.004 (best k = 2), within noise. Possession count is unchanged (86% of truth vs ~85%), so the gain comes from **better-placed boundaries**, not from finding more short possessions. Short possessions remain the open problem.
+
 **Earlier plan (kept):** (dead/alive, team) → decoder tuned by **official spellF1 on held-out DFL matches**, the first honest validation set (~400 possessions per match).
