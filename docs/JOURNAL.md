@@ -110,4 +110,7 @@ For holds of 2, 3 and 4 s: leave-one-match-out on DFL tunes the switch costs **a
 - **A tension:** with 3 copies the challenge prediction drops to 3.3–3.4 possessions per live minute (1 copy: 3.8). DFL says 3 copies is better; the challenge's sanity targets say it under-segments more. Next: compare 1 copy + tags (v2d) on the full-match checks.
 - Safety fix: `train_v2.py` now reads the current config and only saves with `--save`, so it can't silently reset the hold chosen by the sweep.
 
+### Freeze (26 Oct): v2d
+1 copy + Smart Tagging prior fits every full-match target best: 3.9 possessions per live minute, 106 stoppages, 43% dead, 88% of set pieces preceded by dead ball; public spellF1 0.600. Frozen: settings in `configs/v2d.json`, trained models committed in `models/v2d/` (so reproduction does not depend on retraining on a different machine), deterministic LightGBM. Two runs from the committed models gave byte-identical files (sha256 `84307b10…`). Technical document drafted in `docs/TECHNICAL.md`.
+
 **Earlier plan (kept):** (dead/alive, team) → decoder tuned by **official spellF1 on held-out DFL matches**, the first honest validation set (~400 possessions per match).
