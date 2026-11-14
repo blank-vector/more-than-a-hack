@@ -39,6 +39,7 @@ def main():
     ap.add_argument("--min-hold", type=float, default=2.0)
     ap.add_argument("--matches", type=int, default=0)
     ap.add_argument("--save", action="store_true")
+    ap.add_argument("--save-as", type=Path, help="write the chosen settings to this config file (e.g. configs/final.json)")
     ap.add_argument("--dead-from-v2", action="store_true",
                     help="hybrid: dead-ball model trained on v2's 62 features, team/change from v3")
     args = ap.parse_args()
@@ -102,10 +103,13 @@ def main():
     insight(f"v3 {ms:.3f} vs v2d {V2D_CV:.3f} on the same folds · best: switch-ha {best[0]}, switch-d {best[1]}, k {best[2]}. "
             "Adopt only if the gain is > 0.01.")
 
-    if args.save:
+    if args.save or args.save_as:
         cfg = dict(name="v3", min_hold=hold, switch_ha=best[0], switch_d=best[1], k=best[2], copies=1, tags=True,
                    cv_spell_f1=ms)
-        p = ch.THIS_REPO / "configs" / "v3.json"
+        p = args.save_as or ch.THIS_REPO / "configs" / "v3.json"
+        if args.dead_from_v2:
+            cfg["note"] = "hybrid dead model in CV; at prediction time pass --dead-model or set dead_model"
+        cfg["selected_on"] = "leave-one-match-out official spellF1 on degraded DFL matches only (external data)"
         p.write_text(json.dumps(cfg, indent=2))
         console.print(f"[dim]saved → {p.relative_to(ch.THIS_REPO)}[/dim]")
 
