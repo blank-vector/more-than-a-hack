@@ -1,0 +1,11 @@
+{
+  "name": "v3",
+  "min_hold": 62,
+  "switch_ha": 20,
+  "switch_d": 80,
+  "k": 1,
+  "copies": 1,
+  "tags": true,
+  "cv_spell_f1": 0.7040002032992867,
+  "selected_on": "leave-one-match-out official spellF1 on degraded DFL matches only (external data)"
+}
