@@ -1,7 +1,7 @@
 # Results — current state
 
 *More Than a Hack 2027, Phase 1: frame-level ball possession on FC Barcelona vs Athletic Club.*
-*Last updated: 25 Oct 2026. The story of how we got here is in [JOURNAL.md](JOURNAL.md).*
+*Last updated: 15 Nov 2026. The story of how we got here is in [JOURNAL.md](JOURNAL.md).*
 
 ## The task in one paragraph
 
@@ -36,7 +36,27 @@ Measured by `scripts/profile_atd.py` and `scripts/profile_gaps.py` (aggregates o
 
 DFL counts possession on any touch; the challenge counts *controlled* possession. DFL labels need translating before training (see v2).
 
-## Submissions
+## Final submission (15 Nov)
+
+**`final`**: `predict_v3.py --config configs/final.json --models models/final` · sha256 `565501e7603f55a97e0824af956c033bf42060c9cac238afabf38b2d1f6aeae1` (two runs identical).
+
+Every choice was made on DFL alone, following the organisers' clarification of 3 Nov (see [COMPLIANCE.md](COMPLIANCE.md)):
+
+| Choice | Value | How |
+|---|---|---|
+| Label hold | **2.5 s** | Tracking-label possession count closest to DFL's event-data count (ratio 1.03, mean \|log\| 0.062; 3 s 0.080, 2 s 0.138) — `choose_hold_external.py` |
+| Models | v3: dead, team and change, all on 81 features | Trained on all 7 degraded DFL matches |
+| Decoder | switch-ha 20 · switch-d 80 · k 1 | Best of 60 settings, leave-one-match-out spellF1 on DFL — `train_v3.py --min-hold 2.5` |
+
+**DFL CV at the 2.5 s hold:** mean spellF1 **0.704**, with 89% of true possessions found. Per held-out match: J03WMX 0.720 · J03WN1 0.639 · J03WOH 0.695 · J03WOY 0.679 · J03WPY 0.732 · J03WQQ 0.755 · J03WR9 0.708. The best spellF1 for each k is 0.703 / 0.704 / 0.701 / 0.702 / 0.693 (k = 0 / 1 / 2 / 4 / 8), so the change detector adds almost nothing. These scores are not comparable with the 2 s-hold scores below, because the labels differ.
+
+**Challenge, full match:** 223 possessions (3.5 per live minute), 93 dead-ball stretches, 40% dead, Barcelona 56% of live play, 86% of set pieces preceded by predicted dead ball.
+**Public window (sanity only):** spellF1 0.600 · macroF1 0.726 · dead-ball F1 0.463 · 11 vs 17 possessions.
+
+v3c scores 0.614 on the public window, one possession better, but it is not submitted. Its dead-ball model and its 2 s hold were chosen partly by looking at the challenge data, which the rules don't allow.
+
+## Development history
+
 
 All public-window numbers are **sanity checks only**: 17 possessions, ~0.06 spellF1 per possession.
 
@@ -47,7 +67,7 @@ All public-window numbers are **sanity checks only**: 17 possessions, ~0.06 spel
 | v1.1 | `predict_v1.py --d-bias -2.0 --stickiness 2 --d-cost-ratio 4` | 3.6 · 44% · 107 | 0.400 · 0.700 · 13 |
 | v2 | `train_v2.py` then `predict_v2.py` (min_hold 4.0 s, switch-ha 40, switch-d 40) | 3.2 · 41% · 106 | 0.571 · 0.759 · 11 |
 | v2c_notags | 3 training copies, no tag prior | 3.3 · 38% · 93 | 0.586 · 0.728 · 11 |
-| **v3c (frozen candidate)** | `predict_v3.py --config configs/v3c.json --models models/v3` — v3 team/change models + v2d dead model · sha256 `4b84d82d…` | **4.2 · 43% · 108** | **0.614 · 0.766 · 11** (dead-ball F1 **0.561**) |
+| v3c (superseded: chosen partly on challenge data) | `predict_v3.py --config configs/v3c.json --models models/v3` — v3 team/change models + v2d dead model · sha256 `4b84d82d…` | **4.2 · 43% · 108** | **0.614 · 0.766 · 11** (dead-ball F1 **0.561**) |
 | v3b | `predict_v3.py --config configs/v3b.json --models models/v3` — v3 models, stoppage cost 40 · sha256 `0ebe2d49…` | 4.3 · 41% · 113 | **0.614** · 0.728 · 11 (dead-ball F1 0.463) |
 | v3 | v3 models, stoppage cost 80 (DFL's choice) | 4.0 · 40% · 92 | 0.614 · 0.728 · 11 |
 | v2d (fallback) | `predict_v2.py --config configs/v2d.json --models models/v2d` — 1 copy + tag prior · sha256 `84307b10…` | 3.9 · 43% · 106 | **0.600 · 0.762 · 11** |
@@ -58,7 +78,7 @@ All public-window numbers are **sanity checks only**: 17 possessions, ~0.06 spel
 
 | Hold | DFL label rate | CV spellF1 | Decoder | Median lag on DFL | Challenge poss/live-min |
 |---|---|---|---|---|---|
-| **2 s (chosen)** | 5.5 | 0.656 | 20 / 40 | 0.00 s | **3.8** |
+| 2 s (chosen then; superseded by 2.5 s from DFL events) | 5.5 | 0.656 | 20 / 40 | 0.00 s | **3.8** |
 | 3 s | 4.6 | 0.699 | 20 / 40 | 0.00 s | 3.5 |
 | 4 s | 4.0 | 0.723 | 40 / 40 | 0.00 s | 3.2 |
 

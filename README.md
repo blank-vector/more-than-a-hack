@@ -6,20 +6,21 @@ Our pipeline for [Phase 1 of the challenge](https://github.com/metrica-sports/mo
 
 ## Reproduce the submission
 
-The frozen candidate is **v3c**: settings in [`configs/v3c.json`](configs/v3c.json), trained models in `models/v3/` plus the dead-ball model `models/v2d/dead.txt` (all trained on public DFL data only). Fallbacks: v3b ([`configs/v3b.json`](configs/v3b.json)) and v2d ([`configs/v2d.json`](configs/v2d.json)).
+The submission is **`final`**: settings in [`configs/final.json`](configs/final.json) and trained models in `models/final/`, all fitted and selected on public DFL data only (see [docs/COMPLIANCE.md](docs/COMPLIANCE.md)). Earlier development variants (v3c, v3b, v2d) stay in `configs/` for reference.
 
 ```bash
 # official repo next to this one, match data in $MTAH_DATA_DIR (see "Layout on disk")
 pip install -r requirements.txt
-python scripts/predict_v3.py --config configs/v3c.json --models models/v3 --name v3c
-# → outputs/submissions/v3c.csv, plus its sha256 fingerprint
+python scripts/predict_v3.py --config configs/final.json --models models/final --name final
+# → outputs/submissions/final.csv, sha256 565501e7603f55a97e0824af956c033bf42060c9cac238afabf38b2d1f6aeae1
 ```
 
-To retrain the models from the DFL open data instead (downloads ~1.5 GB the first time):
+To rebuild every choice from the DFL open data instead (downloads ~1.5 GB the first time):
 
 ```bash
-python scripts/predict_v2.py --config configs/v2d.json --save-models models/v2d --name v2d
-python scripts/predict_v3.py --config configs/v3b.json --save-models models/v3 --name v3b
+python scripts/choose_hold_external.py                                   # label hold from DFL events → 2.5 s
+python scripts/train_v3.py --min-hold 2.5 --save-as configs/final.json   # decoder costs by DFL CV
+python scripts/predict_v3.py --config configs/final.json --save-models models/final --name final
 ```
 
 ## Layout on disk
@@ -49,6 +50,7 @@ python scripts/predict_v2.py                 # v2 stage 3: train on all DFL, wri
 python scripts/sweep_hold.py                 # v2 round 2: choose label hold, decoder costs and lag shift
 python scripts/train_v3.py                   # v3: change-aware decoder, CV on DFL vs v2d
 python scripts/predict_v3.py                 # v3 submission (configs/v3.json)
+python scripts/choose_hold_external.py       # final: label hold chosen from DFL event data
 ```
 
 `src/possession/challenge.py` imports the official `games.py` and `possession_metrics.py` from the official repo, so we always score exactly like the organisers. `src/possession/atd.py` parses the ATD once into a cache in `$MTAH_DATA_DIR/cache`.

@@ -130,3 +130,16 @@ v3's extra short-range features improved the team side but made public-window st
 **Hybrid result (26 Oct):** DFL CV 0.679 (v3: 0.688, −0.009, within noise; v2d 0.657). On the challenge it is the best fit on every check: **4.2** possessions per live minute, **108** stoppages, 43% dead, 88% of set pieces preceded by dead ball; public spellF1 0.614, macroF1 **0.766**, dead-ball F1 **0.561**. The pattern is consistent with the earlier tensions: v3's extra features make the dead-ball model fit our simulated noise slightly better but transfer worse to the real tracking. **v3c adopted** as the frozen candidate; v3b and v2d kept as fallbacks.
 
 **Earlier plan (kept):** (dead/alive, team) → decoder tuned by **official spellF1 on held-out DFL matches**, the first honest validation set (~400 possessions per match).
+
+### Compliance re-derivation and final submission (14–15 Nov)
+Re-reading the organisers' clarification of 3 Nov ("tune parameters on external data, never on the ground-truth possession data or on the provided video") showed three development choices that leaned on the challenge itself:
+- the 2 s label hold, matched to the public window's possession rate;
+- v3c's dead-ball model, preferred partly for its public-window dead-ball F1;
+- the dead-ball cost of 40, kept because of the challenge's predicted stoppage count.
+
+All three were redone on DFL alone:
+- **Hold from DFL events** (`choose_hold_external.py`): count possessions in DFL's own event data, Opta-style (runs of controlled actions; a dead ball or restart starts a new one). Then pick the hold at which the tracking labels give the same count. **2.5 s** fits best (ratio 1.03). Caveat: DFL's open events have no dribble or carry types, so the event count may be slightly low.
+- **Decoder and variant by DFL CV** (`train_v3.py --min-hold 2.5 --save-as configs/final.json`): plain v3 models, switch-ha 20, switch-d 80, k 1, mean CV spellF1 0.704.
+- **Result on the challenge:** 223 possessions, 93 stoppages, 40% dead. On the public window it scores 0.600 against v3c's 0.614, one possession of 17, within that window's noise. Submitted as `final` (sha256 `565501e7…`). The known cost of following DFL strictly is fewer detected stoppages, documented as a limitation.
+- Fix: `train_v3.py --save-as` crashed after writing the config when given a relative path, so the run log wasn't saved. The path is now resolved first.
+
