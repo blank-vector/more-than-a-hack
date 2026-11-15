@@ -1,6 +1,7 @@
 # Frame-level ball possession from automatic tracking
 
 *More Than a Hack 2027, Phase 1 · FC Barcelona vs Athletic Club · technical document*
+
 *Submission: `final` · sha256 `565501e7603f55a97e0824af956c033bf42060c9cac238afabf38b2d1f6aeae1`*
 
 ## 1. Summary
@@ -23,6 +24,7 @@ All statistics are aggregates computed locally (`scripts/profile_atd.py`, `scrip
 - Player tracklets are long (median 35.5 s), with about 11 players tracked per team.
 
 This split the problem in two:
+
 - **Is play dead?** Speeds, ball position, missing ball and restarts.
 - **Who has it?** Nearest players and team shape.
 
@@ -46,12 +48,14 @@ DFL tracking is clean and labelled, but it differs from the challenge in two way
 **Label definition.** DFL changes possession on any touch, giving 6.5–11 possessions per live minute, whereas the challenge counts controlled possession. A team's run shorter than a **minimum hold** inside live play is given back to the team that had the ball before it. Runs right after a dead ball are kept, because a restart has a clear possessor.
 
 The hold is chosen on DFL alone (`scripts/choose_hold_external.py`):
+
 - We count possessions in DFL's own **event** data the way event providers do. A possession is a run of controlled actions (passes, shots, recoveries) by one team, ended by the other team's controlled action or by a dead ball.
 - We then pick the hold at which the tracking labels reproduce that count.
 
 At **2.5 s** the tracking labels give 1.03 times the event count, with a mean |log ratio| of 0.062 over the 7 matches. The next best holds are 3 s (0.080) and 2 s (0.138). The hold cannot be chosen by validation score, because each hold defines a different answer key.
 
 **Input noise.** Each DFL match is degraded to look like the challenge tracking:
+
 - Missing-ball stretches are tied to stoppages and calibrated per match to P(missing | dead) ≈ 64% and P(missing | live) ≈ 22%. Live-play gaps are log-normal.
 - Player tracks are cut into ~35 s fragments with short dropouts, more of them during stoppages.
 - Positions get jitter.
@@ -59,20 +63,22 @@ At **2.5 s** the tracking labels give 1.03 times the event count, with a mean |l
 The degraded matches show 52–63% ball visibility, against 59% for the challenge. These rates were measured as aggregate statistics of the provided tracking, without any labels.
 
 ### 4.2 Features (81 per frame, identical code for both datasets)
+
 - **Ball:** whether it is visible, whether it is outside the lines, its speed, whether it is standing still, its distance to the touchline and goal line, and its position along the home team's attacking direction.
 - **Nearest players:** distance of the nearest and second-nearest home and away players, their difference, and the number of players within 5 m.
 - **Team shape:** players tracked, centroid along the attacking direction, front-most player, spread, mean speed and forward velocity. The attacking direction is inferred per period from where each team stands on average.
 - **Context:** time since and until the ball was last seen, the ball was out, and each team was close to the ball (capped at 10 s). Also centred rolling means over 1, 3 and 10 s.
 - **Short-range:**
-  - ball velocity along the attacking direction, sideways speed and turning;
-  - how fast each team's nearest player closes on the ball;
-  - tight (≤ 1 m) control over 0.2 and 0.5 s;
-  - past-vs-future contrasts (over 0.5, 1 and 2 s) of the distance difference and of player speed.
+    - ball velocity along the attacking direction, sideways speed and turning;
+    - how fast each team's nearest player closes on the ball;
+    - tight (≤ 1 m) control over 0.2 and 0.5 s;
+    - past-vs-future contrasts (over 0.5, 1 and 2 s) of the distance difference and of player speed.
 
-  At a fixed label definition (2 s hold), these features raised DFL validation from 0.657 to 0.684.
+    At a fixed label definition (2 s hold), these features raised DFL validation from 0.657 to 0.684.
 
 ### 4.3 Models and decoder
 Three deterministic LightGBM classifiers, each using all 81 features:
+
 - dead vs alive;
 - home vs away, on live frames;
 - a **change detector**: P(the label changes within ±0.24 s).
@@ -85,6 +91,7 @@ All three settings were chosen by mean official spellF1 over leave-one-match-out
 
 ### 4.4 Smart Tagging prior (challenge only)
 Before decoding, we apply fixed, hand-set adjustments from football knowledge:
+
 - +2 log-odds for dead ball, from 6 s before each set-piece window to its middle;
 - −1.5 against dead ball and +1 for the restarting team (when tagged) for 3 s after it;
 - dead ball forced before each half's kick-off.
@@ -124,18 +131,22 @@ Two runs from the committed models produce byte-identical files.
 
 ```bash
 git clone https://github.com/metrica-sports/more-than-a-hack-2027
-git clone <this repository>
-cd <this repository>
+git clone https://github.com/blank-vector/more-than-a-hack
+cd more-than-a-hack
 pip install -r requirements.txt
 export MTAH_DATA_DIR=/path/to/match/data        # the bundle with tactical/
 python scripts/predict_v3.py --config configs/final.json --models models/final --name final
-# → outputs/submissions/final.csv, sha256 565501e7603f55a97e0824af956c033bf42060c9cac238afabf38b2d1f6aeae1
+# → outputs/submissions/final.csv
+# sha256 565501e7603f55a97e0824af956c033bf42060c9cac238afabf38b2d1f6aeae1
 ```
 
 The committed models in `models/final/` were trained on public DFL data only. To rebuild every choice from scratch (the scripts download the DFL matches through kloppy):
 
 ```bash
-python scripts/choose_hold_external.py                                   # label hold from DFL events → 2.5 s
-python scripts/train_v3.py --min-hold 2.5 --save-as configs/final.json   # decoder costs by DFL CV
+# label hold from DFL events → 2.5 s
+python scripts/choose_hold_external.py
+# decoder costs by DFL CV
+python scripts/train_v3.py --min-hold 2.5 --save-as configs/final.json
+# train on all DFL matches and predict
 python scripts/predict_v3.py --config configs/final.json --save-models models/final --name final
 ```
