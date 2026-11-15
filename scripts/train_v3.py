@@ -106,7 +106,7 @@ def main():
     if args.save or args.save_as:
         cfg = dict(name="v3", min_hold=hold, switch_ha=best[0], switch_d=best[1], k=best[2], copies=1, tags=True,
                    cv_spell_f1=ms)
-        p = args.save_as or ch.THIS_REPO / "configs" / "v3.json"
+        p = (args.save_as or ch.THIS_REPO / "configs" / "v3.json").resolve()
         if args.dead_from_v2:
             cfg["note"] = "hybrid dead model in CV; at prediction time pass --dead-model or set dead_model"
         cfg["selected_on"] = "leave-one-match-out official spellF1 on degraded DFL matches only (external data)"
